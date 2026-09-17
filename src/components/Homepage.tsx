@@ -1,25 +1,14 @@
-import React, { useState } from 'react';
-import { ArrowRight, Image as ImageIcon, ShieldCheck, ChevronRight } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, ChevronRight, ShieldCheck, Zap, Rocket, Cpu, Layers, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { HeroVideo } from './HeroVideo';
+import { BrandLogo } from './BrandLogo';
 
-export interface HomepageProps {
-  investBgUrl?: string;
-  shopBgUrl?: string;
-  investHref?: string;
-  shopHref?: string;
-}
-
-export const Homepage: React.FC<HomepageProps> = ({
-  investBgUrl,
-  shopBgUrl,
-  investHref = '/invest',
-  shopHref = '/shop',
-}) => {
-  const [investImgError, setInvestImgError] = useState(false);
-  const [shopImgError, setShopImgError] = useState(false);
+export const Homepage: React.FC = () => {
   const { user } = useAuth();
 
-  const handleMembershipClick = (e: React.MouseEvent) => {
+  const handleMembershipClick = (e: React.MouseEvent | React.KeyboardEvent) => {
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
     if (user) {
       window.location.href = '/dashboard/membership';
@@ -29,283 +18,425 @@ export const Homepage: React.FC<HomepageProps> = ({
   };
 
   return (
-    <main className="w-full bg-black p-0 m-0 relative overflow-x-hidden min-h-screen">
-      {/* Floating particles background effect */}
-      <div className="fixed inset-0 z-[3] pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '5%', bottom: '-6px', width: '1.5px', height: '1.5px', opacity: 0.1 }}></div>
-        <div className="absolute rounded-full bg-white animate-float-up" style={{ left: '19%', bottom: '-8.4px', width: '2.1px', height: '2.1px', opacity: 0.16 }}></div>
-        <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '33%', bottom: '-10.8px', width: '2.7px', height: '2.7px', opacity: 0.22 }}></div>
-        <div className="absolute rounded-full bg-white animate-float-up" style={{ left: '47%', bottom: '-6px', width: '1.5px', height: '1.5px', opacity: 0.1 }}></div>
-        <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '61%', bottom: '-8.4px', width: '2.1px', height: '2.1px', opacity: 0.16 }}></div>
-        <div className="absolute rounded-full bg-white animate-float-up" style={{ left: '75%', bottom: '-10.8px', width: '2.7px', height: '2.7px', opacity: 0.22 }}></div>
-        <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '89%', bottom: '-6px', width: '1.5px', height: '1.5px', opacity: 0.1 }}></div>
+    <main className="w-full bg-[#030304] text-white p-0 m-0 relative overflow-x-hidden min-h-screen">
+      {/* Subtle background ambient particle canvas */}
+      <div className="fixed inset-0 z-[1] pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '8%', bottom: '-10px', width: '1.5px', height: '1.5px', opacity: 0.15 }} />
+        <div className="absolute rounded-full bg-[#e82127] animate-float-up" style={{ left: '28%', bottom: '-12px', width: '2px', height: '2px', opacity: 0.2 }} />
+        <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '52%', bottom: '-10px', width: '1.5px', height: '1.5px', opacity: 0.15 }} />
+        <div className="absolute rounded-full bg-[#e82127] animate-float-up" style={{ left: '76%', bottom: '-14px', width: '2.5px', height: '2.5px', opacity: 0.18 }} />
+        <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '91%', bottom: '-10px', width: '1.5px', height: '1.5px', opacity: 0.15 }} />
       </div>
 
-      {/* HERO HERO SPLIT SECTION */}
-      <div className="w-full h-[100dvh] bg-black overflow-hidden relative">
-        {/* SVG clip-path definition for wave divider */}
-        <svg className="absolute w-0 h-0">
-          <defs>
-            <clipPath id="wave-clip" clipPathUnits="objectBoundingBox">
-              <path d="M 0,0 L 1,0 L 1,0.9 C 0.65,1.0 0.35,0.8 0,0.9 Z"></path>
-            </clipPath>
-          </defs>
-        </svg>
+      {/* 1. CINEMATIC HERO SECTION */}
+      <section className="relative w-full h-[100dvh] flex flex-col items-center justify-between z-10 pt-20 pb-12 px-6 sm:px-10 overflow-hidden">
+        {/* Background Cinematic Video */}
+        <HeroVideo className="absolute inset-0 z-0" />
 
-        {/* SHOP SECTION (Bottom split - 60dvh) */}
-        <div className="absolute bottom-0 left-0 w-full h-[60dvh] z-[1]">
-          <section className="relative w-full h-full overflow-hidden flex items-center justify-center cursor-pointer will-change-transform scanline-overlay">
-            {/* Background Image / Accessible Placeholder */}
-            <div className="absolute inset-0 w-full h-full origin-center">
-              {shopBgUrl && !shopImgError ? (
-                <img
-                  alt="Shop Tesla Vehicles"
-                  decoding="async"
-                  className="object-cover object-center w-full h-full absolute inset-0 text-transparent"
-                  src={shopBgUrl}
-                  onError={() => setShopImgError(true)}
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-zinc-950 to-black flex items-center justify-center text-white/20">
-                  <div className="flex flex-col items-center gap-2">
-                    <ImageIcon className="w-12 h-12 stroke-[1.5]" />
-                    <span className="text-xs uppercase tracking-widest font-mono">Shop Background Placeholder</span>
-                  </div>
-                </div>
-              )}
-            </div>
+        {/* Top Hero Brand Watermark */}
+        <div className="relative z-10 flex flex-col items-center pt-6 text-center animate-subtle-pulse">
+          <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.4em] text-white/50 bg-white/[0.04] backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10">
+            Independent Mobility & Aerospace Initiative
+          </span>
+        </div>
 
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70 opacity-85"></div>
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0.4)_0%,_transparent_65%)] z-[5]"></div>
+        {/* Hero Central Content */}
+        <div className="relative z-10 flex flex-col items-center text-center max-w-4xl mx-auto my-auto space-y-6">
+          <div className="inline-flex items-center gap-2 mb-2">
+            <BrandLogo variant="icon" size="lg" />
+          </div>
 
-            {/* Shop Section Content */}
-            <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 w-full max-w-3xl pt-8">
-              <h2
-                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black uppercase tracking-[0.25em] text-white mb-2 sm:mb-3"
-                style={{ textShadow: 'rgba(255, 255, 255, 0.15) 0px 0px 20px, rgba(0, 0, 0, 0.8) 0px 2px 10px' }}
-              >
-                Shop
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black uppercase tracking-[0.18em] leading-[1.05] text-white drop-shadow-[0_10px_35px_rgba(0,0,0,0.9)]">
+            Engineering <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400">
+              The Future
+            </span>{' '}
+            <span className="text-[#e82127] font-semibold">of Mobility</span>
+          </h1>
+
+          <p className="text-xs sm:text-base md:text-lg text-white/70 font-light tracking-[0.1em] max-w-2xl leading-relaxed drop-shadow-md">
+            Tesla & Spacex brings together next-generation electric automotive design, autonomous tunnel infrastructure, orbital energy tech, and exclusive private allocation memberships.
+          </p>
+
+          {/* Call to Actions */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 w-full sm:w-auto">
+            <a
+              href="/projects"
+              className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-xs sm:text-sm font-bold tracking-[0.2em] uppercase text-white rounded-xl bg-[#e82127] hover:bg-red-600 shadow-[0_0_25px_rgba(232,33,39,0.4)] hover:shadow-[0_0_35px_rgba(232,33,39,0.6)] hover:-translate-y-0.5 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <span>Explore Projects</span>
+              <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+            </a>
+
+            <a
+              href="/shop"
+              className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 text-xs sm:text-sm font-bold tracking-[0.2em] uppercase text-white/90 rounded-xl bg-white/[0.06] backdrop-blur-xl border border-white/20 hover:border-white/50 hover:bg-white/[0.12] hover:text-white hover:-translate-y-0.5 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+            >
+              <span>Explore Vehicles</span>
+              <ChevronRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+            </a>
+          </div>
+        </div>
+
+        {/* Bottom Hero Metric Bar */}
+        <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 w-full max-w-5xl mx-auto pt-6 border-t border-white/10 text-center">
+          <div>
+            <div className="text-lg sm:text-2xl font-black text-white font-mono tracking-wider">0–60 MPH</div>
+            <div className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-mono mt-0.5">1.99s Sub-Zero</div>
+          </div>
+          <div>
+            <div className="text-lg sm:text-2xl font-black text-white font-mono tracking-wider">405 MI</div>
+            <div className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-mono mt-0.5">Estimated Range</div>
+          </div>
+          <div>
+            <div className="text-lg sm:text-2xl font-black text-[#e82127] font-mono tracking-wider">100K+ GPU</div>
+            <div className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-mono mt-0.5">xAI Supercluster</div>
+          </div>
+          <div>
+            <div className="text-lg sm:text-2xl font-black text-white font-mono tracking-wider">100%</div>
+            <div className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-mono mt-0.5">Clean Power Flow</div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. MOBILITY / VEHICLE SHOWCASE SECTION */}
+      <section className="relative z-10 w-full bg-[#08080a] py-24 px-6 sm:px-10 border-t border-white/[0.08]">
+        <div className="max-w-7xl mx-auto space-y-16">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/[0.08] pb-8">
+            <div>
+              <span className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.3em] uppercase text-[#e82127] bg-[#e82127]/10 px-3.5 py-1.5 rounded-full border border-[#e82127]/20 mb-3">
+                <Zap className="w-3.5 h-3.5" />
+                Electric Mobility
+              </span>
+              <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+                Designed for Speed. <span className="text-white/40">Engineered for Tomorrow.</span>
               </h2>
-              <p className="text-xs sm:text-sm md:text-base text-white/60 font-light tracking-[0.15em] mb-6 sm:mb-8 max-w-md">
-                Explore and Purchase Tesla Vehicles
-              </p>
-              <div className="w-auto">
-                <a
-                  className="group inline-flex items-center justify-center gap-3 px-7 py-3.5 text-xs sm:text-sm tracking-[0.15em] uppercase text-white/90 rounded-lg transition-all duration-500 ease-out bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-red-500/50 hover:bg-red-600/10 hover:text-white hover:shadow-[0_0_20px_rgba(232,33,39,0.2)] hover:scale-[1.02] focus:outline-none focus:ring-1 focus:ring-red-500/30"
-                  href={shopHref}
-                >
-                  <span className="font-semibold whitespace-nowrap">Browse Vehicles</span>
-                  <ArrowRight className="w-4 h-4 transition-transform duration-500 group-hover:translate-x-1.5" />
-                </a>
-              </div>
             </div>
-          </section>
-        </div>
+            <a
+              href="/shop"
+              className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-[#e82127] hover:text-red-400 transition-colors group"
+            >
+              <span>View All Fleet Models</span>
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </a>
+          </div>
 
-        {/* INVEST SECTION (Top split - 55dvh with wave clip-path) */}
-        <div className="absolute top-0 left-0 w-full h-[55dvh] z-[2]" style={{ clipPath: 'url(#wave-clip)' }}>
-          <section className="relative w-full h-full overflow-hidden flex items-center justify-center cursor-pointer will-change-transform scanline-overlay">
-            {/* Background Image / Accessible Placeholder */}
-            <div className="absolute inset-0 w-full h-full origin-center">
-              {investBgUrl && !investImgError ? (
+          {/* Vehicle Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Model S */}
+            <a
+              href="/shop"
+              className="group relative rounded-2xl overflow-hidden bg-[#121216] border border-white/[0.08] hover:border-white/30 transition-all duration-500 flex flex-col justify-between hover:-translate-y-1 shadow-xl hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+            >
+              <div className="relative h-60 w-full overflow-hidden bg-zinc-900">
                 <img
-                  alt="Invest in Tesla Projects"
-                  decoding="async"
-                  className="object-cover object-center w-full h-full absolute inset-0 text-transparent"
-                  src={investBgUrl}
-                  onError={() => setInvestImgError(true)}
+                  src="https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80"
+                  alt="Model S"
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 filter brightness-90 group-hover:brightness-100"
                 />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-red-950/40 via-zinc-900 to-black flex items-center justify-center text-red-500/20">
-                  <div className="flex flex-col items-center gap-2">
-                    <ImageIcon className="w-12 h-12 stroke-[1.5]" />
-                    <span className="text-xs uppercase tracking-widest font-mono">Invest Background Placeholder</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70 opacity-85"></div>
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_rgba(0,0,0,0.4)_0%,_transparent_65%)] z-[5]"></div>
-
-            {/* Invest Section Content */}
-            <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 w-full max-w-3xl pb-8">
-              <h2
-                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black uppercase tracking-[0.25em] text-red-500 mb-2 sm:mb-3"
-                style={{ textShadow: 'rgba(232, 33, 39, 0.4) 0px 0px 30px, rgba(0, 0, 0, 0.8) 0px 2px 10px' }}
-              >
-                Invest
-              </h2>
-              <p className="text-xs sm:text-sm md:text-base text-white/60 font-light tracking-[0.15em] mb-6 sm:mb-8 max-w-md">
-                Space City Fund · Tunnel Network · AI Plans
-              </p>
-              <div className="w-auto">
-                <a
-                  className="group inline-flex items-center justify-center gap-3 px-7 py-3.5 text-xs sm:text-sm tracking-[0.15em] uppercase text-white/90 rounded-lg transition-all duration-500 ease-out bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] hover:border-red-500/50 hover:bg-red-600/10 hover:text-white hover:shadow-[0_0_20px_rgba(232,33,39,0.2)] hover:scale-[1.02] focus:outline-none focus:ring-1 focus:ring-red-500/30"
-                  href={investHref}
-                >
-                  <span className="font-semibold whitespace-nowrap">Start Investing</span>
-                  <ArrowRight className="w-4 h-4 transition-transform duration-500 group-hover:translate-x-1.5" />
-                </a>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#121216] via-transparent to-transparent" />
               </div>
-            </div>
-          </section>
-        </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-black uppercase text-white tracking-wide">Model S</h3>
+                  <span className="text-xs font-mono text-white/50">From $74,990</span>
+                </div>
+                <p className="text-xs text-white/60 font-light leading-relaxed">
+                  Plaid powertrain delivering 1,020 hp with unmatched range efficiency and aerodynamic profile.
+                </p>
+                <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase tracking-wider text-white/80 group-hover:text-[#e82127] transition-colors">
+                  <span>Order Model S</span>
+                  <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+              </div>
+            </a>
 
-        {/* Red Glowing Wave Line Overlay */}
-        <div className="absolute top-0 left-0 w-full h-[55dvh] pointer-events-none z-[3]">
-          <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 1 1">
-            <path
-              d="M 0,0.9 C 0.35,0.8 0.65,1.0 1,0.9"
-              fill="none"
-              stroke="#e82127"
-              strokeWidth="0.003"
-              className="opacity-90 drop-shadow-[0_0_8px_rgba(232,33,39,0.8)]"
-            ></path>
-          </svg>
-        </div>
-      </div>
+            {/* Cybertruck */}
+            <a
+              href="/shop"
+              className="group relative rounded-2xl overflow-hidden bg-[#121216] border border-white/[0.08] hover:border-white/30 transition-all duration-500 flex flex-col justify-between hover:-translate-y-1 shadow-xl hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+            >
+              <div className="relative h-60 w-full overflow-hidden bg-zinc-900">
+                <img
+                  src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80"
+                  alt="Cybertruck"
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 filter brightness-90 group-hover:brightness-100"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#121216] via-transparent to-transparent" />
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-black uppercase text-white tracking-wide">Cybertruck</h3>
+                  <span className="text-xs font-mono text-white/50">From $79,990</span>
+                </div>
+                <p className="text-xs text-white/60 font-light leading-relaxed">
+                  Ultra-hard stainless steel exoskeleton engineered for extreme utility, durability, and response.
+                </p>
+                <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase tracking-wider text-white/80 group-hover:text-[#e82127] transition-colors">
+                  <span>Order Cybertruck</span>
+                  <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+              </div>
+            </a>
 
-      {/* PUBLIC HOMEPAGE MEMBERSHIP CARDS SECTION */}
-      <section className="relative z-10 w-full bg-[#050505] py-20 sm:py-28 px-6 sm:px-10 border-t border-white/[0.08]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <span className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.3em] uppercase text-red-500 bg-red-500/10 px-4 py-1.5 rounded-full border border-red-500/20 mb-4">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Membership Tiers
+            {/* Model 3 / Y */}
+            <a
+              href="/shop"
+              className="group relative rounded-2xl overflow-hidden bg-[#121216] border border-white/[0.08] hover:border-white/30 transition-all duration-500 flex flex-col justify-between hover:-translate-y-1 shadow-xl hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+            >
+              <div className="relative h-60 w-full overflow-hidden bg-zinc-900">
+                <img
+                  src="https://images.unsplash.com/photo-1536700503339-1e4b06520771?auto=format&fit=crop&w=800&q=80"
+                  alt="Model 3"
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 filter brightness-90 group-hover:brightness-100"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#121216] via-transparent to-transparent" />
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-black uppercase text-white tracking-wide">Model 3 Performance</h3>
+                  <span className="text-xs font-mono text-white/50">From $38,990</span>
+                </div>
+                <p className="text-xs text-white/60 font-light leading-relaxed">
+                  Acoustic glass interior, dual-motor all-wheel drive, and Next-Gen autopilot response system.
+                </p>
+                <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase tracking-wider text-white/80 group-hover:text-[#e82127] transition-colors">
+                  <span>Order Model 3</span>
+                  <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. TECHNOLOGY & ENGINEERING PILLARS SECTION */}
+      <section className="relative z-10 w-full bg-[#030304] py-24 px-6 sm:px-10 border-t border-white/[0.08]">
+        <div className="max-w-7xl mx-auto space-y-16">
+          <div className="text-center max-w-3xl mx-auto space-y-4">
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.3em] uppercase text-white/70 bg-white/[0.04] px-3.5 py-1.5 rounded-full border border-white/10">
+              <Layers className="w-3.5 h-3.5 text-[#e82127]" />
+              Multi-Domain Engineering
             </span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight uppercase">
-              Exclusive Investor <span className="text-white/40">Privileges</span>
+            <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+              Pioneering Earth <span className="text-[#e82127]">&</span> Orbital Tech
             </h2>
-            <p className="text-xs sm:text-sm text-white/50 font-light mt-3 max-w-xl mx-auto leading-relaxed">
-              Unlock elevated allocations, priority vehicle delivery, and institutional yield tools. Select a tier below to get started.
+            <p className="text-xs sm:text-sm text-white/60 font-light leading-relaxed">
+              We connect terrestrial EV mobility with high-speed tunnel transport and high-density orbital energy infrastructure.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Silver Plan Card */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-8 rounded-2xl bg-[#08080a] border border-white/[0.08] hover:border-white/20 transition-all space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-[#e82127]/10 border border-[#e82127]/30 flex items-center justify-center text-[#e82127]">
+                <Rocket className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold uppercase text-white tracking-wide">Aerospace Trajectory</h3>
+              <p className="text-xs text-white/60 font-light leading-relaxed">
+                Space City infrastructure fund participating in heavy-lift payload acceleration, Starbase development, and satellite mesh tech.
+              </p>
+            </div>
+
+            <div className="p-8 rounded-2xl bg-[#08080a] border border-white/[0.08] hover:border-white/20 transition-all space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-white/[0.05] border border-white/20 flex items-center justify-center text-white">
+                <Zap className="w-6 h-6 text-[#e82127]" />
+              </div>
+              <h3 className="text-xl font-bold uppercase text-white tracking-wide">Tunnel Transit Network</h3>
+              <p className="text-xs text-white/60 font-light leading-relaxed">
+                Zero-emissions high-speed underground loop networks bypassing urban congestion with automated electric vehicles.
+              </p>
+            </div>
+
+            <div className="p-8 rounded-2xl bg-[#08080a] border border-white/[0.08] hover:border-white/20 transition-all space-y-4">
+              <div className="w-12 h-12 rounded-xl bg-[#e82127]/10 border border-[#e82127]/30 flex items-center justify-center text-[#e82127]">
+                <Cpu className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold uppercase text-white tracking-wide">xAI Compute Clusters</h3>
+              <p className="text-xs text-white/60 font-light leading-relaxed">
+                Megawatt-scale GPU compute clusters advancing autonomous driving neural networks and physical artificial intelligence.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. MEMBERSHIP TIERS SECTION */}
+      <section className="relative z-10 w-full bg-[#08080a] py-24 sm:py-32 px-6 sm:px-10 border-t border-white/[0.08]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16 space-y-4">
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.3em] uppercase text-[#e82127] bg-[#e82127]/10 px-4 py-1.5 rounded-full border border-[#e82127]/20">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Membership Tiers
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+              Exclusive Investor <span className="text-white/40">Privileges</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-white/50 font-light max-w-xl mx-auto leading-relaxed">
+              Unlock priority vehicle deliveries, private allocation rounds, and institutional-grade analytics. Select a tier below to proceed.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Silver Tier Card */}
             <div
+              role="button"
+              tabIndex={0}
               onClick={handleMembershipClick}
-              className="group relative rounded-2xl p-7 border border-white/[0.08] hover:border-slate-400/40 bg-gradient-to-b from-zinc-900 to-black hover:from-slate-900/50 hover:to-black transition-all duration-500 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-[0_0_25px_rgba(168,178,193,0.15)]"
+              onKeyDown={handleMembershipClick}
+              className="group relative rounded-2xl p-8 border border-slate-600/30 hover:border-slate-300 bg-gradient-to-b from-[#121216] via-[#08080a] to-[#030304] transition-all duration-500 cursor-pointer flex flex-col justify-between hover:-translate-y-1 shadow-lg hover:shadow-[0_0_30px_rgba(148,163,184,0.15)] focus:outline-none focus:ring-2 focus:ring-slate-400"
             >
               <div>
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-6">
                   <span className="text-xs font-mono font-bold uppercase tracking-widest text-slate-300">
                     Silver Tier
                   </span>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-500/20 text-slate-300 border border-slate-500/30">
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-500/20 text-slate-200 border border-slate-500/30">
                     $2,000
                   </span>
                 </div>
                 <h3 className="text-2xl font-black text-white mb-2">Silver Member</h3>
                 <p className="text-xs text-white/50 font-light leading-relaxed mb-6">
-                  Essential membership tier providing member-only market insights and priority support.
+                  Essential membership tier providing member-only market insights and priority support line.
                 </p>
-                <ul className="space-y-2.5 mb-8">
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                <ul className="space-y-3 mb-8">
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                     Priority support (48h response)
                   </li>
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                     Exclusive market insights
                   </li>
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                     Early project access
                   </li>
                 </ul>
               </div>
-              <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase text-slate-300 group-hover:text-white transition-colors">
+              <div className="pt-5 border-t border-white/[0.08] flex items-center justify-between text-xs font-bold uppercase text-slate-300 group-hover:text-white transition-colors">
                 <span>Select Silver Plan</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
             </div>
 
-            {/* Gold Plan Card */}
+            {/* Gold Tier Card */}
             <div
+              role="button"
+              tabIndex={0}
               onClick={handleMembershipClick}
-              className="group relative rounded-2xl p-7 border border-amber-500/30 hover:border-amber-400 bg-gradient-to-b from-amber-950/20 via-zinc-900 to-black hover:from-amber-950/40 transition-all duration-500 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-[0_0_30px_rgba(229,193,88,0.2)]"
+              onKeyDown={handleMembershipClick}
+              className="group relative rounded-2xl p-8 border border-amber-500/40 hover:border-amber-400 bg-gradient-to-b from-amber-950/20 via-[#08080a] to-[#030304] transition-all duration-500 cursor-pointer flex flex-col justify-between hover:-translate-y-1 shadow-lg hover:shadow-[0_0_35px_rgba(217,119,6,0.25)] focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-amber-500 text-black font-black text-[10px] uppercase tracking-wider shadow-md">
+              <div className="absolute -top-3.5 right-6 px-3.5 py-0.5 rounded-full bg-amber-500 text-black font-black text-[10px] uppercase tracking-wider shadow-md">
                 Most Popular
               </div>
               <div>
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-6">
                   <span className="text-xs font-mono font-bold uppercase tracking-widest text-amber-400">
                     Gold Tier
                   </span>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
                     $5,000
                   </span>
                 </div>
                 <h3 className="text-2xl font-black text-white mb-2">Gold Member</h3>
                 <p className="text-xs text-white/50 font-light leading-relaxed mb-6">
-                  Elevated tier for active investors featuring dedicated account management and reduced fees.
+                  Elevated tier for active investors featuring dedicated account management and fee discounts.
                 </p>
-                <ul className="space-y-2.5 mb-8">
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <ul className="space-y-3 mb-8">
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     24/7 Priority support line
                   </li>
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     Dedicated account manager
                   </li>
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     Reduced transaction fees
                   </li>
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     Private investor webcasts
                   </li>
                 </ul>
               </div>
-              <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase text-amber-400 group-hover:text-amber-300 transition-colors">
+              <div className="pt-5 border-t border-white/[0.08] flex items-center justify-between text-xs font-bold uppercase text-amber-400 group-hover:text-amber-300 transition-colors">
                 <span>Select Gold Plan</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
             </div>
 
-            {/* Platinum Plan Card */}
+            {/* Platinum Tier Card */}
             <div
+              role="button"
+              tabIndex={0}
               onClick={handleMembershipClick}
-              className="group relative rounded-2xl p-7 border border-cyan-500/30 hover:border-cyan-400 bg-gradient-to-b from-cyan-950/20 via-zinc-900 to-black hover:from-cyan-950/40 transition-all duration-500 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-[0_0_30px_rgba(102,252,241,0.2)]"
+              onKeyDown={handleMembershipClick}
+              className="group relative rounded-2xl p-8 border border-red-500/40 hover:border-red-400 bg-gradient-to-b from-red-950/20 via-[#08080a] to-[#030304] transition-all duration-500 cursor-pointer flex flex-col justify-between hover:-translate-y-1 shadow-lg hover:shadow-[0_0_35px_rgba(232,33,39,0.25)] focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               <div>
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#e82127]">
                     Platinum Tier
                   </span>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#e82127]/20 text-red-300 border border-[#e82127]/30">
                     $10,000
                   </span>
                 </div>
                 <h3 className="text-2xl font-black text-white mb-2">Platinum VIP</h3>
                 <p className="text-xs text-white/50 font-light leading-relaxed mb-6">
-                  Institutional-grade tier offering bespoke portfolio structuring, zero fees, and direct access.
+                  Institutional-grade tier offering bespoke portfolio structuring, zero fees, and direct allocation.
                 </p>
-                <ul className="space-y-2.5 mb-8">
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                <ul className="space-y-3 mb-8">
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#e82127]" />
                     1-on-1 strategy sessions
                   </li>
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#e82127]" />
                     Direct co-investment allocation
                   </li>
-                  <li className="text-xs text-white/70 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                  <li className="text-xs text-white/80 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#e82127]" />
                     Zero strategy management fees
                   </li>
                 </ul>
               </div>
-              <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase text-cyan-400 group-hover:text-cyan-300 transition-colors">
+              <div className="pt-5 border-t border-white/[0.08] flex items-center justify-between text-xs font-bold uppercase text-[#e82127] group-hover:text-red-400 transition-colors">
                 <span>Select Platinum Plan</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. FINAL STRATEGIC CALL TO ACTION */}
+      <section className="relative z-10 w-full bg-[#030304] py-24 px-6 sm:px-10 border-t border-white/[0.08] text-center">
+        <div className="max-w-3xl mx-auto space-y-8">
+          <BrandLogo size="lg" className="justify-center" />
+          <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+            Ready to Build the Next Era?
+          </h2>
+          <p className="text-xs sm:text-sm text-white/60 font-light leading-relaxed max-w-xl mx-auto">
+            Explore active allocation rounds, reserve custom electric vehicles, or join our exclusive investor membership tier today.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <a
+              href="/projects"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 text-xs font-bold tracking-[0.2em] uppercase text-white bg-[#e82127] rounded-xl hover:bg-red-600 transition-all shadow-[0_0_20px_rgba(232,33,39,0.3)]"
+            >
+              Explore Projects
+              <ArrowRight className="w-4 h-4" />
+            </a>
+            <a
+              href="/invest/signup"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 text-xs font-bold tracking-[0.2em] uppercase text-white/90 bg-white/[0.05] border border-white/20 rounded-xl hover:bg-white/10 transition-all"
+            >
+              Create Account
+            </a>
           </div>
         </div>
       </section>

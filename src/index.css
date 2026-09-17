@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --bg-dark: #030304;
+    --bg-graphite: #08080a;
+    --bg-charcoal: #121216;
+    --text-warm-white: #f4f4f6;
+    --text-soft-white: #e1e1e6;
+    --text-muted-silver: #9494a0;
+    --accent-electric-red: #e82127;
+    --accent-steel: #333842;
+    --accent-amber: #d97706;
+  }
+
   body {
-    @apply bg-black text-white antialiased w-full max-w-[100vw] overflow-x-hidden font-sans;
+    background-color: var(--bg-dark);
+    color: var(--text-warm-white);
+    @apply antialiased w-full max-w-[100vw] overflow-x-hidden font-sans;
   }
 }
 
@@ -34,12 +48,21 @@
   }
 }
 
+@keyframes subtlePulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
 .animate-float-up {
   animation: floatUp 20s linear infinite;
 }
 
 .animate-float-up-alt {
   animation: floatUpAlt 24s linear infinite;
+}
+
+.animate-subtle-pulse {
+  animation: subtlePulse 4s ease-in-out infinite;
 }
 
 /* Custom scanline overlay styling */
@@ -53,8 +76,23 @@
   pointer-events: none;
   background: linear-gradient(
     rgba(18, 16, 16, 0) 50%,
-    rgba(0, 0, 0, 0.25) 50%
+    rgba(0, 0, 0, 0.2) 50%
   );
   background-size: 100% 4px;
   z-index: 4;
+}
+
+/* Reduced motion preference respect */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-float-up,
+  .animate-float-up-alt,
+  .animate-subtle-pulse {
+    animation: none !important;
+  }
 }

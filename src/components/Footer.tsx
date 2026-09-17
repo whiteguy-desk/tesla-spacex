@@ -1,4 +1,5 @@
 import React from 'react';
+import { BrandLogo } from './BrandLogo';
 
 export interface FooterLink {
   label: string;
@@ -18,7 +19,7 @@ export interface FooterProps {
 
 const defaultSections: FooterSection[] = [
   {
-    title: 'Vehicles & Shop',
+    title: 'Vehicles & Mobility',
     links: [
       { label: 'Model S', href: '/shop' },
       { label: 'Model 3', href: '/shop' },
@@ -28,47 +29,57 @@ const defaultSections: FooterSection[] = [
     ],
   },
   {
-    title: 'Investment & Innovation',
+    title: 'Innovation & Projects',
     links: [
-      { label: 'Projects', href: '/projects' },
+      { label: 'Projects Overview', href: '/projects' },
+      { label: 'Space City Infrastructure', href: '/invest' },
+      { label: 'Tunnel Transit Network', href: '/tunnel' },
+      { label: 'AI Computing Plans', href: '/ai' },
       { label: 'How It Works', href: '/how-it-works' },
-      { label: 'Space City Fund', href: '/invest' },
-      { label: 'Tunnel Network', href: '/tunnel' },
-      { label: 'AI Plans', href: '/ai' },
     ],
   },
   {
-    title: 'Company & Support',
+    title: 'Platform & Access',
     links: [
-      { label: 'About', href: '/about' },
-      { label: 'Careers', href: '/careers' },
-      { label: 'Contact', href: '/contact' },
-      { label: 'Privacy & Legal', href: '/legal' },
+      { label: 'Membership Tiers', href: '/dashboard/membership' },
+      { label: 'Investor Login', href: '/invest/login' },
+      { label: 'Account Register', href: '/invest/signup' },
+      { label: 'Platform Support', href: '/support' },
     ],
   },
 ];
 
 export const Footer: React.FC<FooterProps> = ({
-  copyrightText = `© ${new Date().getFullYear()} Tesla, Inc. All rights reserved.`,
-  disclaimerText = 'Disclaimer: Images and promotional materials displayed are for demonstration purposes.',
+  copyrightText = `© ${new Date().getFullYear()} Tesla & Spacex. All rights reserved.`,
+  disclaimerText = 'Notice: Tesla & Spacex is an independent innovation and technology platform. This platform is not officially affiliated with, authorized, endorsed, or sponsored by Tesla, Inc., SpaceX, or any associated corporate entities.',
   sections = defaultSections,
 }) => {
   return (
-    <footer className="w-full bg-black border-t border-white/10 text-white/70 text-xs py-12 px-6 sm:px-10 z-10 relative">
-      <div className="max-w-7xl mx-auto space-y-10">
+    <footer className="w-full bg-[#030304] border-t border-white/[0.08] text-white/60 text-xs py-14 px-6 sm:px-10 z-10 relative">
+      <div className="max-w-7xl mx-auto space-y-12">
+        {/* Brand header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-8 border-b border-white/[0.06]">
+          <a href="/" className="inline-block">
+            <BrandLogo size="md" showTagline={true} />
+          </a>
+          <p className="text-[11px] text-white/40 max-w-md font-light leading-relaxed">
+            Engineering next-generation mobility, autonomous tunnel networks, and aerospace energy systems.
+          </p>
+        </div>
+
         {/* Navigation columns */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
           {sections.map((section) => (
-            <div key={section.title} className="space-y-3">
-              <h3 className="text-white font-semibold text-xs uppercase tracking-[0.2em] border-b border-white/10 pb-2">
+            <div key={section.title} className="space-y-3.5">
+              <h3 className="text-white font-semibold text-xs uppercase tracking-[0.2em] border-b border-white/[0.06] pb-2">
                 {section.title}
               </h3>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {section.links.map((link) => (
                   <li key={link.label}>
                     <a
                       href={link.href}
-                      className="hover:text-white transition-colors duration-200 tracking-[0.05em]"
+                      className="hover:text-white transition-colors duration-200 tracking-[0.05em] text-white/60 text-xs"
                     >
                       {link.label}
                     </a>
@@ -80,17 +91,16 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
 
         {/* Legal Disclaimer */}
-        <div className="pt-6 border-t border-white/10 text-white/50 text-[11px] leading-relaxed">
+        <div className="pt-6 border-t border-white/[0.06] text-white/40 text-[11px] leading-relaxed">
           <p>{disclaimerText}</p>
         </div>
 
         {/* Bottom bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-white/50 text-[11px]">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-white/40 text-[11px]">
           <p>{copyrightText}</p>
           <div className="flex space-x-6">
-            <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="/locations" className="hover:text-white transition-colors">Locations</a>
+            <a href="/legal" className="hover:text-white transition-colors">Privacy & Terms</a>
+            <a href="/support" className="hover:text-white transition-colors">Support</a>
           </div>
         </div>
       </div>
