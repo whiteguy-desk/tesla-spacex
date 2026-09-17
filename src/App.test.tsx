@@ -6,6 +6,7 @@ import { Homepage } from './components/Homepage';
 import { Footer } from './components/Footer';
 import { InvestPage } from './components/InvestPage';
 import { ShopPage } from './components/ShopPage';
+import { HowItWorksPage } from './components/HowItWorksPage';
 
 describe('Tesla UI Clone Components', () => {
   let originalPath = window.location.pathname;
@@ -22,6 +23,7 @@ describe('Tesla UI Clone Components', () => {
     render(<Navbar logoText="TESLA" />);
     expect(screen.getByText('TESLA')).toBeTruthy();
     expect(screen.getByRole('navigation')).toBeTruthy();
+    expect(screen.getByText('How It Works')).toBeTruthy();
   });
 
   it('renders Homepage with Shop and Invest sections', () => {
@@ -36,6 +38,7 @@ describe('Tesla UI Clone Components', () => {
     render(<Footer copyrightText="© 2025 Tesla, Inc. Test Copyright" />);
     expect(screen.getByText('© 2025 Tesla, Inc. Test Copyright')).toBeTruthy();
     expect(screen.getByText('Vehicles & Shop')).toBeTruthy();
+    expect(screen.getAllByText('How It Works').length).toBeGreaterThan(0);
   });
 
   it('renders InvestPage directly with hero and opportunity sections', () => {
@@ -63,6 +66,25 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByLabelText('Go to slide 2')).toBeTruthy();
   });
 
+  it('renders HowItWorksPage directly with all guide sections', () => {
+    render(<HowItWorksPage />);
+    expect(screen.getByText('Platform Guide')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /How It/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Three Ways to Participate' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /Five Steps to Your/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /Two Paths\./i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Available AI Plans' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Membership Tiers' })).toBeTruthy();
+
+    expect(screen.getByText('Starter AI')).toBeTruthy();
+    expect(screen.getByText('Growth AI')).toBeTruthy();
+    expect(screen.getByText('Elite AI')).toBeTruthy();
+
+    expect(screen.getByText('Silver')).toBeTruthy();
+    expect(screen.getByText('Gold')).toBeTruthy();
+    expect(screen.getByText('Platinum')).toBeTruthy();
+  });
+
   it('renders full App layout on root route', () => {
     window.history.pushState({}, '', '/');
     render(<App />);
@@ -86,5 +108,13 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('TESLA')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Vehicles' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 3, name: 'Model Y' })).toBeTruthy();
+  });
+
+  it('renders HowItWorksPage in App layout when on /how-it-works route', () => {
+    window.history.pushState({}, '', '/how-it-works');
+    render(<App />);
+    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getByText('Platform Guide')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Three Ways to Participate' })).toBeTruthy();
   });
 });

@@ -20,20 +20,21 @@ const defaultSections: FooterSection[] = [
   {
     title: 'Vehicles & Shop',
     links: [
-      { label: 'Model S', href: '/shop/model-s' },
-      { label: 'Model 3', href: '/shop/model-3' },
-      { label: 'Model X', href: '/shop/model-x' },
-      { label: 'Model Y', href: '/shop/model-y' },
-      { label: 'Cybertruck', href: '/shop/cybertruck' },
+      { label: 'Model S', href: '/shop' },
+      { label: 'Model 3', href: '/shop' },
+      { label: 'Model X', href: '/shop' },
+      { label: 'Model Y', href: '/shop' },
+      { label: 'Cybertruck', href: '/shop' },
     ],
   },
   {
     title: 'Investment & Innovation',
     links: [
-      { label: 'Space City Fund', href: '/invest/space-city' },
-      { label: 'Tunnel Network', href: '/invest/tunnel' },
-      { label: 'AI Plans', href: '/invest/ai' },
-      { label: 'Investor Relations', href: '/invest/relations' },
+      { label: 'How It Works', href: '/how-it-works' },
+      { label: 'Space City Fund', href: '/invest' },
+      { label: 'Tunnel Network', href: '/tunnel' },
+      { label: 'AI Plans', href: '/ai' },
+      { label: 'Investor Relations', href: '/invest' },
     ],
   },
   {
