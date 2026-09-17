@@ -4,6 +4,7 @@ import { Homepage } from './components/Homepage';
 import { InvestPage } from './components/InvestPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
+import { LoginPage } from './components/LoginPage';
 import { Footer } from './components/Footer';
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
   }, []);
 
   const isHowItWorksRoute = currentPath.startsWith('/how-it-works');
+  const isInvestLoginRoute = currentPath === '/invest/login' || currentPath.startsWith('/invest/login');
   const isInvestRoute =
     currentPath.startsWith('/invest') ||
     currentPath.startsWith('/projects') ||
@@ -30,6 +32,9 @@ export function App() {
   const renderContent = () => {
     if (isHowItWorksRoute) {
       return <HowItWorksPage />;
+    }
+    if (isInvestLoginRoute) {
+      return <LoginPage />;
     }
     if (isInvestRoute) {
       return <InvestPage />;
