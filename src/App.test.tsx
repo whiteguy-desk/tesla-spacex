@@ -74,7 +74,7 @@ vi.mock('./lib/supabase', () => {
   };
 });
 
-describe('Tesla UI Clone Components', () => {
+describe('Tesla & Spacex UI Components', () => {
   let originalPath = window.location.pathname;
 
   beforeEach(() => {
@@ -88,33 +88,36 @@ describe('Tesla UI Clone Components', () => {
   it('renders Navbar with brand logo and navigation links', () => {
     render(
       <AuthProvider>
-        <Navbar logoText="TESLA" />
+        <Navbar />
       </AuthProvider>
     );
-    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getAllByText(/Tesla/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Spacex/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('navigation')).toBeTruthy();
     expect(screen.getByText('How It Works')).toBeTruthy();
     expect(screen.getByText('Projects')).toBeTruthy();
   });
 
-  it('renders Homepage with Shop and Invest sections', () => {
+  it('renders Homepage with cinematic hero and interactive membership tiers', () => {
     render(
       <AuthProvider>
         <Homepage />
       </AuthProvider>
     );
-    expect(screen.getByRole('heading', { level: 2, name: /^shop$/i })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: /^invest$/i })).toBeTruthy();
-    expect(screen.getByText('Browse Vehicles')).toBeTruthy();
-    expect(screen.getByText('Start Investing')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /Engineering The Future of Mobility/i })).toBeTruthy();
+    expect(screen.getAllByText('Explore Projects').length).toBeGreaterThan(0);
+    expect(screen.getByText('Explore Vehicles')).toBeTruthy();
+    expect(screen.getByText('Silver Member')).toBeTruthy();
+    expect(screen.getByText('Gold Member')).toBeTruthy();
+    expect(screen.getByText('Platinum VIP')).toBeTruthy();
   });
 
   it('renders Footer with links and copyright notice', () => {
-    render(<Footer copyrightText="© 2025 Tesla, Inc. Test Copyright" />);
-    expect(screen.getByText('© 2025 Tesla, Inc. Test Copyright')).toBeTruthy();
-    expect(screen.getByText('Vehicles & Shop')).toBeTruthy();
+    render(<Footer copyrightText="© 2025 Tesla & Spacex. All rights reserved." />);
+    expect(screen.getByText('© 2025 Tesla & Spacex. All rights reserved.')).toBeTruthy();
+    expect(screen.getByText('Vehicles & Mobility')).toBeTruthy();
     expect(screen.getAllByText('How It Works').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Projects').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Projects Overview').length).toBeGreaterThan(0);
   });
 
   it('renders InvestPage directly with hero and opportunity sections', async () => {
@@ -201,7 +204,7 @@ describe('Tesla UI Clone Components', () => {
   it('renders ProjectsPage in App layout when on /projects route', async () => {
     window.history.pushState({}, '', '/projects');
     render(<App />);
-    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getAllByText(/Tesla/i).length).toBeGreaterThan(0);
     expect(screen.getByText('Private Market Access')).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
