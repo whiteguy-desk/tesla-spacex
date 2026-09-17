@@ -25,6 +25,7 @@ export function App() {
   const isSignupRoute = currentPath.startsWith('/invest/signup');
   const isHowItWorksRoute = currentPath.startsWith('/how-it-works');
   const isInvestLoginRoute = currentPath === '/invest/login' || currentPath.startsWith('/invest/login');
+  const isProjectsRoute = currentPath.startsWith('/projects');
   const isInvestRoute =
     currentPath.startsWith('/invest') ||
     currentPath.startsWith('/tunnel') ||
@@ -40,6 +41,9 @@ export function App() {
     }
     if (isInvestLoginRoute) {
       return <LoginPage />;
+    }
+    if (isProjectsRoute) {
+      return <ProjectsPage />;
     }
     if (isInvestRoute) {
       return <InvestPage />;
