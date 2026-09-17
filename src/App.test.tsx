@@ -10,6 +10,7 @@ import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
 import { SignupPage } from './components/SignupPage';
 import { LoginPage } from './components/LoginPage';
+import { AboutPage } from './components/AboutPage';
 
 describe('Tesla UI Clone Components', () => {
   let originalPath = window.location.pathname;
@@ -44,6 +45,7 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('Vehicles & Shop')).toBeTruthy();
     expect(screen.getAllByText('How It Works').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Projects').length).toBeGreaterThan(0);
+    expect(screen.getByText('About')).toBeTruthy();
   });
 
   it('renders InvestPage directly with hero and opportunity sections', () => {
@@ -108,6 +110,24 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('Platinum')).toBeTruthy();
   });
 
+  it('renders AboutPage directly with all sections', () => {
+    render(<AboutPage />);
+    expect(screen.getByText('Our Story')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /About Tesla/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /Democratising/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /A World Where/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /Three Products\./i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Our Journey' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /What Sets Us/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /What We/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /The Team/i })).toBeTruthy();
+
+    expect(screen.getByText('Marcus Chen')).toBeTruthy();
+    expect(screen.getByText('Sofia Reyes')).toBeTruthy();
+    expect(screen.getByText('James Kowalski')).toBeTruthy();
+    expect(screen.getByText('Amara Levi')).toBeTruthy();
+  });
+
   it('renders SignupPage directly with form elements and password toggle', () => {
     render(<SignupPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Create your account' })).toBeTruthy();
@@ -126,6 +146,8 @@ describe('Tesla UI Clone Components', () => {
     fireEvent.click(toggleBtn);
     expect(passwordInput.type).toBe('text');
     expect(screen.getByRole('button', { name: 'Hide' })).toBeTruthy();
+  });
+
   it('renders LoginPage directly with login form elements', () => {
     render(<LoginPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeTruthy();
@@ -154,11 +176,21 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByRole('heading', { level: 2, name: /^invest$/i })).toBeTruthy();
   });
 
+  it('renders AboutPage in App layout when on /about route', () => {
+    window.history.pushState({}, '', '/about');
+    render(<App />);
+    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getByText('Our Story')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /About Tesla/i })).toBeTruthy();
+  });
+
   it('renders SignupPage in App layout when on /invest/signup route', () => {
     window.history.pushState({}, '', '/invest/signup');
     render(<App />);
     expect(screen.getByText('TESLA')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Create your account' })).toBeTruthy();
+  });
+
   it('renders ProjectsPage in App layout when on /projects route', () => {
     window.history.pushState({}, '', '/projects');
     render(<App />);
