@@ -5,6 +5,7 @@ import { InvestPage } from './components/InvestPage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
+import { LoginPage } from './components/LoginPage';
 import { Footer } from './components/Footer';
 
 export function App() {
@@ -21,7 +22,7 @@ export function App() {
   }, []);
 
   const isHowItWorksRoute = currentPath.startsWith('/how-it-works');
-  const isProjectsRoute = currentPath.startsWith('/projects');
+  const isInvestLoginRoute = currentPath === '/invest/login' || currentPath.startsWith('/invest/login');
   const isInvestRoute =
     currentPath.startsWith('/invest') ||
     currentPath.startsWith('/tunnel') ||
@@ -32,8 +33,8 @@ export function App() {
     if (isHowItWorksRoute) {
       return <HowItWorksPage />;
     }
-    if (isProjectsRoute) {
-      return <ProjectsPage />;
+    if (isInvestLoginRoute) {
+      return <LoginPage />;
     }
     if (isInvestRoute) {
       return <InvestPage />;

@@ -8,6 +8,7 @@ import { InvestPage } from './components/InvestPage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
+import { LoginPage } from './components/LoginPage';
 
 describe('Tesla UI Clone Components', () => {
   let originalPath = window.location.pathname;
@@ -107,6 +108,27 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('Platinum')).toBeTruthy();
   });
 
+  it('renders LoginPage directly with login form elements', () => {
+    render(<LoginPage />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeTruthy();
+    expect(screen.getByText('Access your investment dashboard')).toBeTruthy();
+    expect(screen.getByLabelText(/Email Address/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Password/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign In' })).toBeTruthy();
+    expect(screen.getByText('Forgot password?')).toBeTruthy();
+    expect(screen.getByText('Create one')).toBeTruthy();
+
+    // Test password show/hide toggle
+    const toggleButton = screen.getByRole('button', { name: 'Show' });
+    const passwordInput = screen.getByLabelText(/Password/i) as HTMLInputElement;
+    expect(passwordInput.type).toBe('password');
+
+    fireEvent.click(toggleButton);
+    expect(screen.getByRole('button', { name: 'Hide' })).toBeTruthy();
+    expect(passwordInput.type).toBe('text');
+  });
+
   it('renders full App layout on root route', () => {
     window.history.pushState({}, '', '/');
     render(<App />);
@@ -130,6 +152,15 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText("Tomorrow's World")).toBeTruthy();
     expect(screen.getByText('The Musk')).toBeTruthy();
     expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
+  });
+
+  it('renders LoginPage in App layout when on /invest/login route', () => {
+    window.history.pushState({}, '', '/invest/login');
+    render(<App />);
+    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeTruthy();
+    expect(screen.getByText('Access your investment dashboard')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign In' })).toBeTruthy();
   });
 
   it('renders ShopPage in App layout when on /shop route', () => {
