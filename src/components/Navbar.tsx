@@ -14,6 +14,7 @@ export interface NavbarProps {
 const defaultNavItems: NavItem[] = [
   { label: 'Shop', href: '/shop' },
   { label: 'Invest', href: '/invest' },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Tunnel Network', href: '/tunnel' },
   { label: 'AI Plans', href: '/ai' },
   { label: 'Support', href: '/support' },
