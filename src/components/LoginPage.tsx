@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatAuthError } from '../lib/auth';
+import { useAuth } from '../context/AuthContext';
+import { navigate } from '../lib/navigation';
 
 export const LoginPage: React.FC = () => {
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +36,10 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      // Successful login - navigate to dashboard/invest page
-      window.location.href = '/invest';
+      // Successful login - navigate to dashboard (or redirect target)
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectTarget = searchParams.get('redirect') || '/dashboard';
+      navigate(redirectTarget);
     } catch (err) {
       setErrorMessage(formatAuthError(err));
       setIsLoading(false);
@@ -42,9 +54,13 @@ export const LoginPage: React.FC = () => {
         <div className="relative w-full max-w-md">
           <div className="text-center mb-10">
             <a
-              className="text-lg font-bold tracking-[0.25em] uppercase text-white inline-block"
+              className="text-lg font-bold tracking-[0.25em] uppercase text-white inline-block cursor-pointer"
               style={{ fontFamily: 'var(--font-montserrat), sans-serif' }}
-              href="/invest"
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/');
+              }}
             >
               Meta <span className="text-red-500">Wealth</span>
             </a>
@@ -145,10 +161,14 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <p className="text-center text-sm text-white/40 font-light">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <a
-                className="text-white/70 hover:text-white transition-colors duration-300 font-medium"
+                className="text-white/70 hover:text-white transition-colors duration-300 font-medium cursor-pointer"
                 href="/invest/signup"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/invest/signup');
+                }}
               >
                 Create one
               </a>

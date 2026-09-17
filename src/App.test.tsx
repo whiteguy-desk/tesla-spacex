@@ -191,13 +191,21 @@ describe('Tesla & Spacex UI Components', () => {
   });
 
   it('renders SignupPage directly with form elements and password toggle', () => {
-    render(<SignupPage />);
+    render(
+      <AuthProvider>
+        <SignupPage />
+      </AuthProvider>
+    );
     expect(screen.getByRole('heading', { level: 1, name: 'Create your account' })).toBeTruthy();
     expect(screen.getByLabelText(/Email Address/i)).toBeTruthy();
   });
 
   it('renders LoginPage directly with login form elements', () => {
-    render(<LoginPage />);
+    render(
+      <AuthProvider>
+        <LoginPage />
+      </AuthProvider>
+    );
     expect(screen.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeTruthy();
   });
 

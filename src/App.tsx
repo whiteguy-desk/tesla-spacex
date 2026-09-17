@@ -9,6 +9,7 @@ import { HowItWorksPage } from './components/HowItWorksPage';
 import { SignupPage } from './components/SignupPage';
 import { LoginPage } from './components/LoginPage';
 import { Footer } from './components/Footer';
+import { navigate } from './lib/navigation';
 
 // Dashboard imports
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
@@ -46,6 +47,13 @@ export function AppContent() {
     currentPath.startsWith('/ai');
   const isShopRoute = currentPath.startsWith('/shop');
 
+  // Redirect authenticated user away from login/signup routes
+  useEffect(() => {
+    if (!isLoading && user && (isSignupRoute || isInvestLoginRoute)) {
+      navigate('/dashboard');
+    }
+  }, [user, isLoading, isSignupRoute, isInvestLoginRoute]);
+
   // Dashboard route check
   const isDashboardRoute = currentPath.startsWith('/dashboard');
 
@@ -62,7 +70,7 @@ export function AppContent() {
 
     if (!user) {
       // Redirect unauthenticated user to login page
-      window.location.href = `/invest/login?redirect=${encodeURIComponent(currentPath)}`;
+      navigate(`/invest/login?redirect=${encodeURIComponent(currentPath)}`);
       return null;
     }
 
