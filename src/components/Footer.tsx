@@ -30,11 +30,11 @@ const defaultSections: FooterSection[] = [
   {
     title: 'Investment & Innovation',
     links: [
+      { label: 'Projects', href: '/projects' },
       { label: 'How It Works', href: '/how-it-works' },
       { label: 'Space City Fund', href: '/invest' },
       { label: 'Tunnel Network', href: '/tunnel' },
       { label: 'AI Plans', href: '/ai' },
-      { label: 'Investor Relations', href: '/invest' },
     ],
   },
   {

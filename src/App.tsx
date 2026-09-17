@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Homepage } from './components/Homepage';
 import { InvestPage } from './components/InvestPage';
+import { ProjectsPage } from './components/ProjectsPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
 import { LoginPage } from './components/LoginPage';
@@ -24,7 +25,6 @@ export function App() {
   const isInvestLoginRoute = currentPath === '/invest/login' || currentPath.startsWith('/invest/login');
   const isInvestRoute =
     currentPath.startsWith('/invest') ||
-    currentPath.startsWith('/projects') ||
     currentPath.startsWith('/tunnel') ||
     currentPath.startsWith('/ai');
   const isShopRoute = currentPath.startsWith('/shop');
