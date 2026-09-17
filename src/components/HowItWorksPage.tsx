@@ -9,7 +9,6 @@ import {
   BarChart3,
   TrendingUp,
   CircleCheck,
-  Award,
 } from 'lucide-react';
 
 export const HowItWorksPage: React.FC = () => {
