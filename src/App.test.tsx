@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import App from './App';
 import { Navbar } from './components/Navbar';
 import { Homepage } from './components/Homepage';
 import { Footer } from './components/Footer';
 import { InvestPage } from './components/InvestPage';
+import { ShopPage } from './components/ShopPage';
 
 describe('Tesla UI Clone Components', () => {
   let originalPath = window.location.pathname;
@@ -46,6 +47,22 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('Gigafactory Mexico — Phase 1')).toBeTruthy();
   });
 
+  it('renders ShopPage directly with vehicle products and interactive hero carousel', () => {
+    render(<ShopPage />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Vehicles' })).toBeTruthy();
+    expect(screen.getAllByText('Model 3').length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { level: 3, name: 'Model Y' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Cybertruck' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Model S' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Model X' })).toBeTruthy();
+
+    // Test carousel navigation
+    const nextButton = screen.getByLabelText('Next Slide');
+    fireEvent.click(nextButton);
+    // After clicking next, slide 2 (Model Y) should be active in hero section
+    expect(screen.getByLabelText('Go to slide 2')).toBeTruthy();
+  });
+
   it('renders full App layout on root route', () => {
     window.history.pushState({}, '', '/');
     render(<App />);
@@ -61,5 +78,13 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText("Tomorrow's World")).toBeTruthy();
     expect(screen.getByText('The Musk')).toBeTruthy();
     expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
+  });
+
+  it('renders ShopPage in App layout when on /shop route', () => {
+    window.history.pushState({}, '', '/shop');
+    render(<App />);
+    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Vehicles' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Model Y' })).toBeTruthy();
   });
 });

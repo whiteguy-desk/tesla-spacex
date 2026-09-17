@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Homepage } from './components/Homepage';
 import { InvestPage } from './components/InvestPage';
+import { ShopPage } from './components/ShopPage';
 import { Footer } from './components/Footer';
 
 export function App() {
@@ -18,11 +19,22 @@ export function App() {
   }, []);
 
   const isInvestRoute = currentPath.startsWith('/invest');
+  const isShopRoute = currentPath.startsWith('/shop');
+
+  const renderContent = () => {
+    if (isInvestRoute) {
+      return <InvestPage />;
+    }
+    if (isShopRoute) {
+      return <ShopPage />;
+    }
+    return <Homepage />;
+  };
 
   return (
     <div className="relative w-full max-w-[100vw] overflow-x-hidden flex flex-col min-h-screen bg-black text-white">
       <Navbar />
-      {isInvestRoute ? <InvestPage /> : <Homepage />}
+      {renderContent()}
       <Footer />
     </div>
   );
