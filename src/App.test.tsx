@@ -126,6 +126,8 @@ describe('Tesla UI Clone Components', () => {
     fireEvent.click(toggleBtn);
     expect(passwordInput.type).toBe('text');
     expect(screen.getByRole('button', { name: 'Hide' })).toBeTruthy();
+  });
+
   it('renders LoginPage directly with login form elements', () => {
     render(<LoginPage />);
     expect(screen.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeTruthy();
@@ -159,6 +161,8 @@ describe('Tesla UI Clone Components', () => {
     render(<App />);
     expect(screen.getByText('TESLA')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Create your account' })).toBeTruthy();
+  });
+
   it('renders ProjectsPage in App layout when on /projects route', () => {
     window.history.pushState({}, '', '/projects');
     render(<App />);
