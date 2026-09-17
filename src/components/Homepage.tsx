@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowRight, Image as ImageIcon } from 'lucide-react';
+import { ArrowRight, Image as ImageIcon, ShieldCheck, ChevronRight } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 export interface HomepageProps {
   investBgUrl?: string;
@@ -16,9 +17,19 @@ export const Homepage: React.FC<HomepageProps> = ({
 }) => {
   const [investImgError, setInvestImgError] = useState(false);
   const [shopImgError, setShopImgError] = useState(false);
+  const { user } = useAuth();
+
+  const handleMembershipClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      window.location.href = '/dashboard/membership';
+    } else {
+      window.location.href = '/invest/login';
+    }
+  };
 
   return (
-    <main className="w-full h-[100dvh] bg-black p-0 m-0 relative overflow-hidden">
+    <main className="w-full bg-black p-0 m-0 relative overflow-x-hidden min-h-screen">
       {/* Floating particles background effect */}
       <div className="fixed inset-0 z-[3] pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '5%', bottom: '-6px', width: '1.5px', height: '1.5px', opacity: 0.1 }}></div>
@@ -30,6 +41,7 @@ export const Homepage: React.FC<HomepageProps> = ({
         <div className="absolute rounded-full bg-white animate-float-up-alt" style={{ left: '89%', bottom: '-6px', width: '1.5px', height: '1.5px', opacity: 0.1 }}></div>
       </div>
 
+      {/* HERO HERO SPLIT SECTION */}
       <div className="w-full h-[100dvh] bg-black overflow-hidden relative">
         {/* SVG clip-path definition for wave divider */}
         <svg className="absolute w-0 h-0">
@@ -153,6 +165,152 @@ export const Homepage: React.FC<HomepageProps> = ({
           </svg>
         </div>
       </div>
+
+      {/* PUBLIC HOMEPAGE MEMBERSHIP CARDS SECTION */}
+      <section className="relative z-10 w-full bg-[#050505] py-20 sm:py-28 px-6 sm:px-10 border-t border-white/[0.08]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="inline-flex items-center gap-2 text-[11px] font-bold tracking-[0.3em] uppercase text-red-500 bg-red-500/10 px-4 py-1.5 rounded-full border border-red-500/20 mb-4">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Membership Tiers
+            </span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight uppercase">
+              Exclusive Investor <span className="text-white/40">Privileges</span>
+            </h2>
+            <p className="text-xs sm:text-sm text-white/50 font-light mt-3 max-w-xl mx-auto leading-relaxed">
+              Unlock elevated allocations, priority vehicle delivery, and institutional yield tools. Select a tier below to get started.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Silver Plan Card */}
+            <div
+              onClick={handleMembershipClick}
+              className="group relative rounded-2xl p-7 border border-white/[0.08] hover:border-slate-400/40 bg-gradient-to-b from-zinc-900 to-black hover:from-slate-900/50 hover:to-black transition-all duration-500 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-[0_0_25px_rgba(168,178,193,0.15)]"
+            >
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest text-slate-300">
+                    Silver Tier
+                  </span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-500/20 text-slate-300 border border-slate-500/30">
+                    $2,000
+                  </span>
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2">Silver Member</h3>
+                <p className="text-xs text-white/50 font-light leading-relaxed mb-6">
+                  Essential membership tier providing member-only market insights and priority support.
+                </p>
+                <ul className="space-y-2.5 mb-8">
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                    Priority support (48h response)
+                  </li>
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                    Exclusive market insights
+                  </li>
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                    Early project access
+                  </li>
+                </ul>
+              </div>
+              <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase text-slate-300 group-hover:text-white transition-colors">
+                <span>Select Silver Plan</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* Gold Plan Card */}
+            <div
+              onClick={handleMembershipClick}
+              className="group relative rounded-2xl p-7 border border-amber-500/30 hover:border-amber-400 bg-gradient-to-b from-amber-950/20 via-zinc-900 to-black hover:from-amber-950/40 transition-all duration-500 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-[0_0_30px_rgba(229,193,88,0.2)]"
+            >
+              <div className="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-amber-500 text-black font-black text-[10px] uppercase tracking-wider shadow-md">
+                Most Popular
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest text-amber-400">
+                    Gold Tier
+                  </span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    $5,000
+                  </span>
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2">Gold Member</h3>
+                <p className="text-xs text-white/50 font-light leading-relaxed mb-6">
+                  Elevated tier for active investors featuring dedicated account management and reduced fees.
+                </p>
+                <ul className="space-y-2.5 mb-8">
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    24/7 Priority support line
+                  </li>
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    Dedicated account manager
+                  </li>
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    Reduced transaction fees
+                  </li>
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    Private investor webcasts
+                  </li>
+                </ul>
+              </div>
+              <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase text-amber-400 group-hover:text-amber-300 transition-colors">
+                <span>Select Gold Plan</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* Platinum Plan Card */}
+            <div
+              onClick={handleMembershipClick}
+              className="group relative rounded-2xl p-7 border border-cyan-500/30 hover:border-cyan-400 bg-gradient-to-b from-cyan-950/20 via-zinc-900 to-black hover:from-cyan-950/40 transition-all duration-500 cursor-pointer flex flex-col justify-between shadow-lg hover:shadow-[0_0_30px_rgba(102,252,241,0.2)]"
+            >
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400">
+                    Platinum Tier
+                  </span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    $10,000
+                  </span>
+                </div>
+                <h3 className="text-2xl font-black text-white mb-2">Platinum VIP</h3>
+                <p className="text-xs text-white/50 font-light leading-relaxed mb-6">
+                  Institutional-grade tier offering bespoke portfolio structuring, zero fees, and direct access.
+                </p>
+                <ul className="space-y-2.5 mb-8">
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                    1-on-1 strategy sessions
+                  </li>
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                    Direct co-investment allocation
+                  </li>
+                  <li className="text-xs text-white/70 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                    Zero strategy management fees
+                  </li>
+                </ul>
+              </div>
+              <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-xs font-bold uppercase text-cyan-400 group-hover:text-cyan-300 transition-colors">
+                <span>Select Platinum Plan</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   );
 };
+
+export default Homepage;
