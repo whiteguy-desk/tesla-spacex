@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { updateProfile, formatAuthError } from '../lib/auth';
+import { useAuth } from '../context/AuthContext';
+import { navigate } from '../lib/navigation';
 
 export const SignupPage: React.FC = () => {
+  const { user, refreshProfile } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -18,7 +21,15 @@ export const SignupPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -45,15 +56,15 @@ export const SignupPage: React.FC = () => {
         return;
       }
 
-      const user = authData.user;
-      if (!user) {
+      const createdUser = authData.user;
+      if (!createdUser) {
         setErrorMessage('Failed to create user account. Please try again.');
         setIsSubmitting(false);
         return;
       }
 
       // 2. Update the profile row that was created by the database trigger
-      const { error: profileError } = await updateProfile(user.id, {
+      const { error: profileError } = await updateProfile(createdUser.id, {
         first_name: formData.firstName,
         last_name: formData.lastName,
         gender: formData.gender,
@@ -65,10 +76,22 @@ export const SignupPage: React.FC = () => {
 
       if (profileError) {
         console.error('Error updating profile metadata:', profileError);
-        // Note: account was created, so we can still display completion or soft warning
       }
 
-      setSubmitted(true);
+      // 3. Refresh profile in AuthContext
+      await refreshProfile();
+
+      // Check if session was returned or exists
+      const session = authData.session || (await supabase.auth.getSession()).data.session;
+
+      if (session) {
+        setHasSession(true);
+        // Navigate directly to authenticated dashboard
+        navigate('/dashboard');
+      } else {
+        setHasSession(false);
+        setSubmitted(true);
+      }
     } catch (err) {
       setErrorMessage(formatAuthError(err));
     } finally {
@@ -83,9 +106,13 @@ export const SignupPage: React.FC = () => {
         <div className="relative w-full max-w-lg">
           <div className="text-center mb-10">
             <a
-              className="text-lg font-bold tracking-[0.25em] uppercase text-white inline-block"
+              className="text-lg font-bold tracking-[0.25em] uppercase text-white inline-block cursor-pointer"
               style={{ fontFamily: 'var(--font-montserrat, Montserrat, sans-serif)' }}
-              href="/invest"
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/');
+              }}
             >
               Meta <span className="text-red-500">Wealth</span>
             </a>
@@ -111,19 +138,51 @@ export const SignupPage: React.FC = () => {
 
             {submitted ? (
               <div className="text-center py-8">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4 text-xl">
-                  ✓
-                </div>
-                <h2 className="text-xl font-bold mb-2">Account Created</h2>
-                <p className="text-sm text-white/60 mb-6">
-                  Welcome aboard! Your registration is complete.
-                </p>
-                <a
-                  href="/invest"
-                  className="inline-block px-6 py-3 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold uppercase tracking-wider rounded-full transition-colors"
-                >
-                  Go to Portfolio
-                </a>
+                {hasSession ? (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4 text-xl">
+                      ✓
+                    </div>
+                    <h2 className="text-xl font-bold mb-2">Account Created</h2>
+                    <p className="text-sm text-white/60 mb-6">
+                      Welcome aboard! Your registration is complete.
+                    </p>
+                    <a
+                      href="/dashboard"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate('/dashboard');
+                      }}
+                      className="inline-block px-6 py-3 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold uppercase tracking-wider rounded-full transition-colors cursor-pointer"
+                    >
+                      Go to Dashboard
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto mb-4 text-xl">
+                      ✉
+                    </div>
+                    <h2 className="text-xl font-bold mb-2">Account Created</h2>
+                    <p className="text-sm text-white/60 mb-6 leading-relaxed">
+                      Please check your email to confirm your account before logging in.
+                      <br />
+                      <span className="text-xs text-white/40 mt-2 block">
+                        (To enable instant sign-up without email confirmation, disable &quot;Confirm email&quot; in Supabase Auth Settings.)
+                      </span>
+                    </p>
+                    <a
+                      href="/invest/login"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate('/invest/login');
+                      }}
+                      className="inline-block px-6 py-3 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold uppercase tracking-wider rounded-full transition-colors cursor-pointer"
+                    >
+                      Go to Sign In
+                    </a>
+                  </>
+                )}
               </div>
             ) : (
               <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
@@ -567,8 +626,12 @@ export const SignupPage: React.FC = () => {
             <p className="text-center text-sm text-white/40 font-light">
               Already have an account?{' '}
               <a
-                className="text-white/70 hover:text-white transition-colors duration-300 font-medium"
+                className="text-white/70 hover:text-white transition-colors duration-300 font-medium cursor-pointer"
                 href="/invest/login"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/invest/login');
+                }}
               >
                 Sign in
               </a>
