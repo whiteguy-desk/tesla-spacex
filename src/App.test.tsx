@@ -7,6 +7,7 @@ import { Footer } from './components/Footer';
 import { InvestPage } from './components/InvestPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
+import { SignupPage } from './components/SignupPage';
 
 describe('Tesla UI Clone Components', () => {
   let originalPath = window.location.pathname;
@@ -62,7 +63,6 @@ describe('Tesla UI Clone Components', () => {
     // Test carousel navigation
     const nextButton = screen.getByLabelText('Next Slide');
     fireEvent.click(nextButton);
-    // After clicking next, slide 2 (Model Y) should be active in hero section
     expect(screen.getByLabelText('Go to slide 2')).toBeTruthy();
   });
 
@@ -85,11 +85,38 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('Platinum')).toBeTruthy();
   });
 
+  it('renders SignupPage directly with form elements and password toggle', () => {
+    render(<SignupPage />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Create your account' })).toBeTruthy();
+    expect(screen.getByLabelText(/Email Address/i)).toBeTruthy();
+    expect(screen.getByLabelText(/First Name/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Last Name/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Gender/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Date of Birth/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Country/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Currency/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Phone Number/i)).toBeTruthy();
+    const passwordInput = screen.getByLabelText(/Password/i) as HTMLInputElement;
+    expect(passwordInput.type).toBe('password');
+
+    const toggleBtn = screen.getByRole('button', { name: 'Show' });
+    fireEvent.click(toggleBtn);
+    expect(passwordInput.type).toBe('text');
+    expect(screen.getByRole('button', { name: 'Hide' })).toBeTruthy();
+  });
+
   it('renders full App layout on root route', () => {
     window.history.pushState({}, '', '/');
     render(<App />);
     expect(screen.getByText('TESLA')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: /^invest$/i })).toBeTruthy();
+  });
+
+  it('renders SignupPage in App layout when on /invest/signup route', () => {
+    window.history.pushState({}, '', '/invest/signup');
+    render(<App />);
+    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Create your account' })).toBeTruthy();
   });
 
   it('renders InvestPage in App layout when on /invest route', () => {

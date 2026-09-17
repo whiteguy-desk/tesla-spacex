@@ -4,6 +4,7 @@ import { Homepage } from './components/Homepage';
 import { InvestPage } from './components/InvestPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
+import { SignupPage } from './components/SignupPage';
 import { Footer } from './components/Footer';
 
 export function App() {
@@ -19,6 +20,7 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const isSignupRoute = currentPath.startsWith('/invest/signup');
   const isHowItWorksRoute = currentPath.startsWith('/how-it-works');
   const isInvestRoute =
     currentPath.startsWith('/invest') ||
@@ -28,6 +30,9 @@ export function App() {
   const isShopRoute = currentPath.startsWith('/shop');
 
   const renderContent = () => {
+    if (isSignupRoute) {
+      return <SignupPage />;
+    }
     if (isHowItWorksRoute) {
       return <HowItWorksPage />;
     }
