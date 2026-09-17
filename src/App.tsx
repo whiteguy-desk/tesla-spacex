@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Homepage } from './components/Homepage';
 import { InvestPage } from './components/InvestPage';
@@ -9,7 +10,7 @@ import { SignupPage } from './components/SignupPage';
 import { LoginPage } from './components/LoginPage';
 import { Footer } from './components/Footer';
 
-export function App() {
+export function AppContent() {
   const [currentPath, setCurrentPath] = useState(
     typeof window !== 'undefined' ? window.location.pathname : '/'
   );
@@ -60,6 +61,14 @@ export function App() {
       {renderContent()}
       <Footer />
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

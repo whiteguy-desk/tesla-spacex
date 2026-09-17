@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { formatAuthError } from '../lib/auth';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -7,15 +9,29 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage(null);
 
-    // Simulated login submission or authentication hook connection
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setErrorMessage(formatAuthError(error));
+        setIsLoading(false);
+        return;
+      }
+
+      // Successful login - navigate to dashboard/invest page
+      window.location.href = '/invest';
+    } catch (err) {
+      setErrorMessage(formatAuthError(err));
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -48,7 +64,7 @@ export const LoginPage: React.FC = () => {
             </div>
 
             {errorMessage && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400">
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 font-light leading-relaxed">
                 {errorMessage}
               </div>
             )}
