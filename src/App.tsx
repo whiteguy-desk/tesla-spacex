@@ -5,6 +5,7 @@ import { InvestPage } from './components/InvestPage';
 import { ProjectsPage } from './components/ProjectsPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
+import { SignupPage } from './components/SignupPage';
 import { LoginPage } from './components/LoginPage';
 import { Footer } from './components/Footer';
 
@@ -21,6 +22,7 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const isSignupRoute = currentPath.startsWith('/invest/signup');
   const isHowItWorksRoute = currentPath.startsWith('/how-it-works');
   const isInvestLoginRoute = currentPath === '/invest/login' || currentPath.startsWith('/invest/login');
   const isInvestRoute =
@@ -30,6 +32,9 @@ export function App() {
   const isShopRoute = currentPath.startsWith('/shop');
 
   const renderContent = () => {
+    if (isSignupRoute) {
+      return <SignupPage />;
+    }
     if (isHowItWorksRoute) {
       return <HowItWorksPage />;
     }
