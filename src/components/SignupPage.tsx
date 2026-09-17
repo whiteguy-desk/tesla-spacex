@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { updateProfile, formatAuthError } from '../lib/auth';
 
 export const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -16,6 +18,7 @@ export const SignupPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -24,13 +27,53 @@ export const SignupPage: React.FC = () => {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setErrorMessage(null);
+
+    try {
+      // 1. Sign up user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (authError) {
+        setErrorMessage(formatAuthError(authError));
+        setIsSubmitting(false);
+        return;
+      }
+
+      const user = authData.user;
+      if (!user) {
+        setErrorMessage('Failed to create user account. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 2. Update the profile row that was created by the database trigger
+      const { error: profileError } = await updateProfile(user.id, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        gender: formData.gender,
+        date_of_birth: formData.dob,
+        country: formData.country,
+        currency: formData.currency,
+        phone: formData.phone,
+      });
+
+      if (profileError) {
+        console.error('Error updating profile metadata:', profileError);
+        // Note: account was created, so we can still display completion or soft warning
+      }
+
       setSubmitted(true);
-    }, 800);
+    } catch (err) {
+      setErrorMessage(formatAuthError(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -59,6 +102,12 @@ export const SignupPage: React.FC = () => {
                 Start building your portfolio today
               </p>
             </div>
+
+            {errorMessage && (
+              <div className="mb-6 p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 font-light leading-relaxed">
+                {errorMessage}
+              </div>
+            )}
 
             {submitted ? (
               <div className="text-center py-8">
