@@ -7,6 +7,7 @@ import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
 import { SignupPage } from './components/SignupPage';
 import { LoginPage } from './components/LoginPage';
+import { AboutPage } from './components/AboutPage';
 import { Footer } from './components/Footer';
 
 export function App() {
@@ -22,6 +23,8 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const isAboutRoute = currentPath.startsWith('/about');
+  const isProjectsRoute = currentPath.startsWith('/projects');
   const isSignupRoute = currentPath.startsWith('/invest/signup');
   const isHowItWorksRoute = currentPath.startsWith('/how-it-works');
   const isInvestLoginRoute = currentPath === '/invest/login' || currentPath.startsWith('/invest/login');
@@ -32,6 +35,12 @@ export function App() {
   const isShopRoute = currentPath.startsWith('/shop');
 
   const renderContent = () => {
+    if (isAboutRoute) {
+      return <AboutPage />;
+    }
+    if (isProjectsRoute) {
+      return <ProjectsPage />;
+    }
     if (isSignupRoute) {
       return <SignupPage />;
     }
