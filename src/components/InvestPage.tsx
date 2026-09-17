@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import { fetchProjects, type Project } from '../lib/projects';
 
 export const InvestPage: React.FC = () => {
   const heroImages = [
@@ -10,6 +11,8 @@ export const InvestPage: React.FC = () => {
   ];
 
   const [activeSlide, setActiveSlide] = useState(0);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -17,6 +20,19 @@ export const InvestPage: React.FC = () => {
     }, 5000);
     return () => clearInterval(timer);
   }, [heroImages.length]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchProjects().then((data) => {
+      if (mounted) {
+        setProjects(data);
+        setLoadingProjects(false);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <div className="bg-black text-white min-h-screen">
@@ -36,7 +52,6 @@ export const InvestPage: React.FC = () => {
                   className="object-cover object-center w-full h-full absolute inset-0"
                   src={img.src}
                   onError={(e) => {
-                    // Fallback to dark gradient if image fails to load
                     (e.target as HTMLElement).style.display = 'none';
                   }}
                 />
@@ -72,7 +87,7 @@ export const InvestPage: React.FC = () => {
               Direct investment access to SpaceX Space City, The Boring Company Tunnel Network, and AI-powered capital programs — the infrastructure of the next century, open to everyone.
             </p>
 
-            {/* TradingView Ticker Widget Box */}
+            {/* Market Abstraction / Ticker Box */}
             <div className="w-full max-w-3xl mb-10 rounded-xl border border-white/[0.08] bg-black/40 backdrop-blur-sm px-4 py-3 overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-white/80">
                 <div className="flex items-center gap-2">
@@ -163,7 +178,7 @@ export const InvestPage: React.FC = () => {
                   </li>
                   <li className="text-sm text-black/70 leading-relaxed flex items-start gap-2.5">
                     <span className="w-1 h-1 rounded-full bg-red-500/50 mt-[7px] shrink-0"></span>
-                    Complete identity verification (KYC)
+                    Complete quick account registration
                   </li>
                   <li className="text-sm text-black/70 leading-relaxed flex items-start gap-2.5">
                     <span className="w-1 h-1 rounded-full bg-red-500/50 mt-[7px] shrink-0"></span>
@@ -188,7 +203,7 @@ export const InvestPage: React.FC = () => {
                   </li>
                   <li className="text-sm text-black/70 leading-relaxed flex items-start gap-2.5">
                     <span className="w-1 h-1 rounded-full bg-red-500/50 mt-[7px] shrink-0"></span>
-                    Select a tier — Explorer, Pioneer, or Visionary
+                    Select a tier — Silver, Gold, or Platinum
                   </li>
                   <li className="text-sm text-black/70 leading-relaxed flex items-start gap-2.5">
                     <span className="w-1 h-1 rounded-full bg-red-500/50 mt-[7px] shrink-0"></span>
@@ -241,11 +256,11 @@ export const InvestPage: React.FC = () => {
               Strategic Exposure
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-[0.06em] leading-[1.1] text-white mb-8 w-full">
-              The Musk<br />
+              The Innovation<br />
               <span className="text-white/40">Ecosystem</span>
             </h2>
             <p className="text-base sm:text-lg text-white/50 font-light max-w-2xl leading-relaxed mb-16">
-              Every company in our portfolio is building critical infrastructure for civilisation's next chapter — aerospace, clean energy, AI, neural interfaces, and underground transit. SpaceX and The Boring Company are open for investment now.
+              Every company in our portfolio is building critical infrastructure for civilisation's next chapter — aerospace, clean energy, AI, neural interfaces, and underground transit.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
@@ -365,248 +380,77 @@ export const InvestPage: React.FC = () => {
               </a>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Opportunity 1: Dogecoin Reserve Fund */}
-              <div className="group relative flex flex-col rounded-2xl overflow-hidden border border-white/[0.07] hover:border-white/[0.18] transition-all duration-500 bg-[#080808] cursor-pointer">
-                <div className="relative h-52 overflow-hidden bg-zinc-900">
-                  <img
-                    src="https://res.cloudinary.com/do2jdvxzh/image/upload/v1776248208/projects/doge-reserve.jpg"
-                    alt="Dogecoin Reserve Fund"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/30 to-transparent"></div>
-                  <div
-                    className="absolute inset-0 opacity-25 pointer-events-none"
-                    style={{ background: 'radial-gradient(circle at top right, #C2A63350 0%, transparent 55%)' }}
-                  ></div>
-                  <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between">
-                    <span
-                      className="px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full backdrop-blur-md"
-                      style={{ backgroundColor: '#C2A63325', color: '#C2A633', border: '1px solid #C2A63345' }}
-                    >
-                      Dogecoin
-                    </span>
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 backdrop-blur-md">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Live
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col flex-1 p-5 space-y-4">
-                  <div>
-                    <h3 className="text-base font-bold text-white tracking-tight mb-1 leading-snug">
-                      Dogecoin Reserve Fund
-                    </h3>
-                    <p className="text-xs text-white/45 leading-relaxed line-clamp-2">
-                      Ride the world's most iconic meme coin with institutional-grade exposure
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-sm font-bold" style={{ color: '#C2A633' }}>
-                        40%–120%
-                      </p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Yield</p>
-                    </div>
-                    <div className="border-x border-white/[0.06]">
-                      <p className="text-sm font-bold text-white">$1,000</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Min</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">437</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Investors</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-[9px] text-white/25 mb-1.5">
-                      <span>$55.5B raised</span>
-                      <span>100% of $50M</span>
-                    </div>
-                    <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-1000 w-full" style={{ backgroundColor: '#C2A633' }}></div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-white/[0.05] mt-auto">
-                    <span className="text-[10px] text-white/30">View investment details</span>
-                    <a
-                      href="/invest/signup"
-                      className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-all duration-300 group-hover:gap-2"
-                      style={{ color: '#C2A633' }}
-                    >
-                      Invest Now
-                      <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover:translate-x-0.5" />
-                    </a>
-                  </div>
-                </div>
+            {loadingProjects ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-red-500 mb-3" />
+                <p className="text-xs uppercase font-mono text-white/50">Loading opportunities...</p>
               </div>
-
-              {/* Opportunity 2: xAI Colossus II */}
-              <div className="group relative flex flex-col rounded-2xl overflow-hidden border border-white/[0.07] hover:border-white/[0.18] transition-all duration-500 bg-[#080808] cursor-pointer">
-                <div className="relative h-52 overflow-hidden bg-zinc-900">
-                  <img
-                    src="https://res.cloudinary.com/do2jdvxzh/image/upload/v1776248181/projects/xai-colossus.jpg"
-                    alt="xAI Colossus II — 1M GPU Cluster"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/30 to-transparent"></div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {projects.slice(0, 3).map((project) => (
                   <div
-                    className="absolute inset-0 opacity-25 pointer-events-none"
-                    style={{ background: 'radial-gradient(circle at top right, #3b82f650 0%, transparent 55%)' }}
-                  ></div>
-                  <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between">
-                    <span
-                      className="px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full backdrop-blur-md"
-                      style={{ backgroundColor: '#3b82f625', color: '#60a5fa', border: '1px solid #3b82f645' }}
-                    >
-                      xAI
-                    </span>
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 backdrop-blur-md">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Live
-                    </span>
-                  </div>
-                </div>
+                    key={project.id}
+                    className="group relative flex flex-col rounded-2xl overflow-hidden border border-white/[0.07] hover:border-white/[0.18] transition-all duration-500 bg-[#080808] cursor-pointer"
+                  >
+                    <div className="relative h-52 overflow-hidden bg-zinc-900">
+                      <img
+                        src={project.image_url}
+                        alt={project.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/30 to-transparent"></div>
+                      <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between">
+                        <span className="px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full backdrop-blur-md bg-white/10 text-white border border-white/20">
+                          {project.category}
+                        </span>
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 backdrop-blur-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          {project.status}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="flex flex-col flex-1 p-5 space-y-4">
-                  <div>
-                    <h3 className="text-base font-bold text-white tracking-tight mb-1 leading-snug">
-                      xAI Colossus II — 1M GPU Cluster
-                    </h3>
-                    <p className="text-xs text-white/45 leading-relaxed line-clamp-2">
-                      Back the infrastructure powering the world's most powerful AI
-                    </p>
-                  </div>
+                    <div className="flex flex-col flex-1 p-5 space-y-4">
+                      <div>
+                        <h3 className="text-base font-bold text-white tracking-tight mb-1 leading-snug">
+                          {project.name}
+                        </h3>
+                        <p className="text-xs text-white/45 leading-relaxed line-clamp-2">
+                          {project.description}
+                        </p>
+                      </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-sm font-bold text-blue-400">
-                        28%–90%
-                      </p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Yield</p>
-                    </div>
-                    <div className="border-x border-white/[0.06]">
-                      <p className="text-sm font-bold text-white">$10,000</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Min</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">289</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Investors</p>
-                    </div>
-                  </div>
+                      <div className="grid grid-cols-2 gap-2 text-center py-2 border-y border-white/[0.06]">
+                        <div>
+                          <p className="text-sm font-bold text-red-500">{project.display_metric || 'N/A'}</p>
+                          <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Target Yield</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white">
+                            ${(project.target_amount ? project.target_amount / 1_000_000 : 50).toFixed(0)}M
+                          </p>
+                          <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Target</p>
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="flex justify-between text-[9px] text-white/25 mb-1.5">
-                      <span>$128M raised</span>
-                      <span>43% of $300M</span>
-                    </div>
-                    <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-1000 bg-blue-500 w-[42.6%]"></div>
+                      <div className="flex items-center justify-between pt-2 mt-auto">
+                        <span className="text-[10px] text-white/30">View details</span>
+                        <a
+                          href={`/projects/${project.slug}`}
+                          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-all duration-300 group-hover:gap-2 text-red-500"
+                        >
+                          Invest Now
+                          <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover:translate-x-0.5" />
+                        </a>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-white/[0.05] mt-auto">
-                    <span className="text-[10px] text-white/30">View investment details</span>
-                    <a
-                      href="/invest/signup"
-                      className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-all duration-300 group-hover:gap-2 text-blue-400"
-                    >
-                      Invest Now
-                      <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover:translate-x-0.5" />
-                    </a>
-                  </div>
-                </div>
+                ))}
               </div>
-
-              {/* Opportunity 3: Gigafactory Mexico */}
-              <div className="group relative flex flex-col rounded-2xl overflow-hidden border border-white/[0.07] hover:border-white/[0.18] transition-all duration-500 bg-[#080808] cursor-pointer">
-                <div className="relative h-52 overflow-hidden bg-zinc-900">
-                  <img
-                    src="https://res.cloudinary.com/do2jdvxzh/image/upload/v1776248179/projects/tesla-gigafactory-mexico.jpg"
-                    alt="Gigafactory Mexico — Phase 1"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-[#080808]/30 to-transparent"></div>
-                  <div
-                    className="absolute inset-0 opacity-25 pointer-events-none"
-                    style={{ background: 'radial-gradient(circle at top right, #CC000050 0%, transparent 55%)' }}
-                  ></div>
-                  <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between">
-                    <span
-                      className="px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full backdrop-blur-md"
-                      style={{ backgroundColor: '#CC000025', color: '#ff4d4d', border: '1px solid #CC000045' }}
-                    >
-                      Tesla
-                    </span>
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 backdrop-blur-md">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Live
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col flex-1 p-5 space-y-4">
-                  <div>
-                    <h3 className="text-base font-bold text-white tracking-tight mb-1 leading-snug">
-                      Gigafactory Mexico — Phase 1
-                    </h3>
-                    <p className="text-xs text-white/45 leading-relaxed line-clamp-2">
-                      Fund the next generation of affordable Tesla vehicles
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-sm font-bold text-red-500">
-                        32%–95%
-                      </p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Yield</p>
-                    </div>
-                    <div className="border-x border-white/[0.06]">
-                      <p className="text-sm font-bold text-white">$2,500</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Min</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white">512</p>
-                      <p className="text-[9px] text-white/30 uppercase tracking-wider mt-0.5">Investors</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-[9px] text-white/25 mb-1.5">
-                      <span>$84M raised</span>
-                      <span>70% of $120M</span>
-                    </div>
-                    <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-1000 bg-red-600 w-[70%]"></div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-white/[0.05] mt-auto">
-                    <span className="text-[10px] text-white/30">View investment details</span>
-                    <a
-                      href="/invest/signup"
-                      className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] transition-all duration-300 group-hover:gap-2 text-red-500"
-                    >
-                      Invest Now
-                      <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover:translate-x-0.5" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </section>
       </main>

@@ -1,155 +1,194 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-export interface ShopProduct {
-  id: string;
-  name: string;
-  tagline: string;
-  imageUrl: string;
-  orderUrl: string;
-  aspectRatioClass?: string;
-  gridSpanClass?: string;
-}
-
-const INITIAL_PRODUCTS: ShopProduct[] = [
-  {
-    id: 'model-3',
-    name: 'Model 3',
-    tagline: 'Experience the Future.',
-    imageUrl: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1772912143/shop_products/vjembb6zp8ymaabtyvtf.avif',
-    orderUrl: 'https://www.teslaincorp.pro/dashboard/shop/model-3',
-    aspectRatioClass: 'aspect-video sm:aspect-[21/9]',
-    gridSpanClass: 'md:col-span-2',
-  },
-  {
-    id: 'model-y',
-    name: 'Model Y',
-    tagline: 'Experience the Future.',
-    imageUrl: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1772912441/shop_products/mrmi8lgluhgy3czb1bcd.avif',
-    orderUrl: 'https://www.teslaincorp.pro/dashboard/shop/model-y',
-    aspectRatioClass: 'aspect-[4/3]',
-    gridSpanClass: 'md:col-span-1',
-  },
-  {
-    id: 'cybertruck',
-    name: 'Cybertruck',
-    tagline: 'Experience the Future.',
-    imageUrl: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1772912774/shop_products/fg6egsdynvtmhmnoftfo.avif',
-    orderUrl: 'https://www.teslaincorp.pro/dashboard/shop/cybertruck',
-    aspectRatioClass: 'aspect-[4/3]',
-    gridSpanClass: 'md:col-span-1',
-  },
-  {
-    id: 'model-s',
-    name: 'Model S',
-    tagline: 'Experience the Future.',
-    imageUrl: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1772907569/shop_products/aq36923m5clq2s9eb1kn.jpg',
-    orderUrl: 'https://www.teslaincorp.pro/dashboard/shop/model-s',
-    aspectRatioClass: 'aspect-video sm:aspect-[21/9]',
-    gridSpanClass: 'md:col-span-2',
-  },
-  {
-    id: 'model-x',
-    name: 'Model X',
-    tagline: 'Experience the Future.',
-    imageUrl: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1772912600/shop_products/artqw7clgs2xkivyktel.avif',
-    orderUrl: 'https://www.teslaincorp.pro/dashboard/shop/model-x',
-    aspectRatioClass: 'aspect-[4/3]',
-    gridSpanClass: 'md:col-span-1',
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Loader2, CheckCircle } from 'lucide-react';
+import { fetchVehicles, type Vehicle } from '../lib/vehicles';
+import { useAuth } from '../hooks/useAuth';
+import { createVehicleOrder } from '../lib/dashboard';
+import { buildVehicleOrderTelegramUrl } from '../lib/telegram';
 
 export interface ShopPageProps {
-  products?: ShopProduct[];
+  initialVehicles?: Vehicle[];
 }
 
-export const ShopPage: React.FC<ShopPageProps> = ({ products = INITIAL_PRODUCTS }) => {
+export const ShopPage: React.FC<ShopPageProps> = () => {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [orderingVehicleId, setOrderingVehicleId] = useState<string | null>(null);
+  const [orderSuccessMessage, setOrderSuccessMessage] = useState<string | null>(null);
 
-  const activeProduct = products[currentSlideIndex] || products[0];
+  const { user, profile } = useAuth();
+
+  useEffect(() => {
+    let mounted = true;
+    fetchVehicles().then((data) => {
+      if (mounted) {
+        setVehicles(data);
+        setLoading(false);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const activeVehicle = vehicles[currentSlideIndex] || vehicles[0];
 
   const handlePrevSlide = () => {
-    setCurrentSlideIndex((prev) => (prev === 0 ? products.length - 1 : prev - 1));
+    setCurrentSlideIndex((prev) => (prev === 0 ? vehicles.length - 1 : prev - 1));
   };
 
   const handleNextSlide = () => {
-    setCurrentSlideIndex((prev) => (prev === products.length - 1 ? 0 : prev + 1));
+    setCurrentSlideIndex((prev) => (prev === vehicles.length - 1 ? 0 : prev + 1));
   };
+
+  const handleOrderNow = async (vehicle: Vehicle, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) {
+      window.location.href = '/invest/login';
+      return;
+    }
+
+    setOrderingVehicleId(vehicle.id);
+    setOrderSuccessMessage(null);
+
+    const customerName = profile?.first_name
+      ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+      : user.email?.split('@')[0] || 'Customer';
+    const customerEmail = user.email || '';
+
+    const { order, error } = await createVehicleOrder(
+      user.id,
+      vehicle,
+      1,
+      customerName,
+      customerEmail
+    );
+
+    setOrderingVehicleId(null);
+
+    if (error) {
+      console.error('Error recording order:', error);
+    }
+
+    const orderId = order?.id || `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const telegramUrl = buildVehicleOrderTelegramUrl({
+      orderId,
+      vehicleName: vehicle.name,
+      vehicleId: vehicle.id,
+      quantity: 1,
+      fullPrice: vehicle.full_price,
+      partPayment: vehicle.part_payment_amount || 5000,
+      customerName,
+      customerEmail,
+    });
+
+    setOrderSuccessMessage(`Order #${orderId.slice(0, 8)} created. Redirecting to Telegram...`);
+
+    setTimeout(() => {
+      window.location.href = telegramUrl;
+    }, 1200);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-[#F4F4F4] text-black min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-black/60" />
+          <p className="text-xs uppercase tracking-widest font-mono text-black/60">Loading Vehicles...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#F4F4F4] text-black min-h-screen">
       <main className="w-full min-h-screen pb-24">
+        {orderSuccessMessage && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-black text-white px-6 py-3 rounded-full shadow-2xl border border-white/20 flex items-center gap-3 animate-bounce text-xs font-bold tracking-wider uppercase">
+            <CheckCircle className="w-4 h-4 text-emerald-400" />
+            {orderSuccessMessage}
+          </div>
+        )}
+
         {/* HERO CAROUSEL SECTION */}
-        <section className="relative h-screen w-full flex flex-col items-center justify-between overflow-hidden group bg-[#F4F4F4]">
-          <div className="absolute inset-0 w-full h-full select-none" draggable={false}>
-            <div
-              key={activeProduct.id}
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 ease-out scale-105 group-hover:scale-100"
-              style={{ backgroundImage: `url(${activeProduct.imageUrl})` }}
-            ></div>
-            <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-black/20 to-transparent pointer-events-none"></div>
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/30 to-transparent pointer-events-none"></div>
-          </div>
-
-          <div className="relative z-10 w-full flex flex-col items-center justify-start pt-28 sm:pt-36 pointer-events-none">
-            <div className="text-center">
-              <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold text-white tracking-tight drop-shadow-md font-sans">
-                {activeProduct.name}
-              </h1>
-              <p className="text-base sm:text-lg text-white/90 mt-2 font-medium tracking-wider drop-shadow-sm max-w-lg mx-auto px-4">
-                {activeProduct.tagline}
-              </p>
+        {activeVehicle && (
+          <section className="relative h-screen w-full flex flex-col items-center justify-between overflow-hidden group bg-[#F4F4F4]">
+            <div className="absolute inset-0 w-full h-full select-none" draggable={false}>
+              <div
+                key={activeVehicle.id}
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 ease-out scale-105 group-hover:scale-100"
+                style={{ backgroundImage: `url(${activeVehicle.image_url})` }}
+              ></div>
+              <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-black/30 to-transparent pointer-events-none"></div>
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
             </div>
-          </div>
 
-          <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 z-10 flex flex-col items-center gap-6 w-full px-6">
-            <div className="w-full max-w-sm mx-auto flex justify-center">
-              <a
-                className="w-full sm:w-[260px] text-center bg-white/90 backdrop-blur-md text-black text-xs font-bold tracking-[0.1em] uppercase px-8 py-3.5 rounded hover:bg-white hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl cursor-pointer"
-                href={activeProduct.orderUrl}
+            <div className="relative z-10 w-full flex flex-col items-center justify-start pt-28 sm:pt-36 pointer-events-none">
+              <div className="text-center px-4">
+                <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold text-white tracking-tight drop-shadow-md font-sans">
+                  {activeVehicle.name}
+                </h1>
+                <p className="text-base sm:text-lg text-white/90 mt-2 font-medium tracking-wider drop-shadow-sm max-w-lg mx-auto">
+                  {activeVehicle.description}
+                </p>
+                <div className="flex items-center justify-center gap-4 mt-3 text-xs font-bold text-white/90 tracking-widest uppercase">
+                  <span>Full Price: ${activeVehicle.full_price.toLocaleString()}</span>
+                  <span>•</span>
+                  <span className="text-emerald-300">Part Payment: ${(activeVehicle.part_payment_amount || 5000).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 z-10 flex flex-col items-center gap-6 w-full px-6">
+              <div className="w-full max-w-sm mx-auto flex justify-center">
+                <button
+                  type="button"
+                  onClick={(e) => handleOrderNow(activeVehicle, e)}
+                  disabled={orderingVehicleId === activeVehicle.id}
+                  className="w-full sm:w-[260px] text-center bg-white/90 backdrop-blur-md text-black text-xs font-bold tracking-[0.1em] uppercase px-8 py-3.5 rounded hover:bg-white hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl cursor-pointer disabled:opacity-50"
+                >
+                  {orderingVehicleId === activeVehicle.id ? 'Processing...' : 'Order Now'}
+                </button>
+              </div>
+
+              {/* Carousel Navigation Buttons */}
+              <button
+                onClick={handlePrevSlide}
+                className="absolute left-6 bottom-1/2 translate-y-1/2 sm:left-12 sm:top-[-40vh] z-20 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/30 text-white border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
+                aria-label="Previous Slide"
               >
-                Order Now
-              </a>
-            </div>
+                <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
+              </button>
+              <button
+                onClick={handleNextSlide}
+                className="absolute right-6 bottom-1/2 translate-y-1/2 sm:right-12 sm:top-[-40vh] z-20 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/30 text-white border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
+                aria-label="Next Slide"
+              >
+                <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
+              </button>
 
-            {/* Carousel Navigation Buttons */}
-            <button
-              onClick={handlePrevSlide}
-              className="absolute left-6 bottom-1/2 translate-y-1/2 sm:left-12 sm:top-[-40vh] z-20 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/30 text-white border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
-              aria-label="Previous Slide"
-            >
-              <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
-            </button>
-            <button
-              onClick={handleNextSlide}
-              className="absolute right-6 bottom-1/2 translate-y-1/2 sm:right-12 sm:top-[-40vh] z-20 p-2 sm:p-3 rounded-full bg-white/10 hover:bg-white/30 text-white border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
-              aria-label="Next Slide"
-            >
-              <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
-            </button>
-
-            {/* Slide Indicators */}
-            <div className="flex gap-2">
-              {products.map((p, idx) => {
-                const isActive = idx === currentSlideIndex;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => setCurrentSlideIndex(idx)}
-                    className={`relative h-1 rounded-full flex-shrink-0 overflow-hidden transition-all duration-300 cursor-pointer ${
-                      isActive
-                        ? 'w-16 bg-white/30'
-                        : 'w-2 bg-white/50 hover:bg-white/80'
-                    }`}
-                    aria-label={`Go to slide ${idx + 1}`}
-                  >
-                    {isActive && <div className="absolute inset-y-0 left-0 bg-white w-full"></div>}
-                  </button>
-                );
-              })}
+              {/* Slide Indicators */}
+              <div className="flex gap-2">
+                {vehicles.map((v, idx) => {
+                  const isActive = idx === currentSlideIndex;
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => setCurrentSlideIndex(idx)}
+                      className={`relative h-1 rounded-full flex-shrink-0 overflow-hidden transition-all duration-300 cursor-pointer ${
+                        isActive ? 'w-16 bg-white/30' : 'w-2 bg-white/50 hover:bg-white/80'
+                      }`}
+                      aria-label={`Go to slide ${idx + 1}`}
+                    >
+                      {isActive && <div className="absolute inset-y-0 left-0 bg-white w-full"></div>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <div className="sticky top-14 z-40 w-full border-b transition-all duration-300 bg-white border-black/5"></div>
 
@@ -161,38 +200,63 @@ export const ShopPage: React.FC<ShopPageProps> = ({ products = INITIAL_PRODUCTS 
                 Vehicles
               </h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
-              {products.map((product) => (
-                <div
-                  key={product.id}
-                  className={`flex flex-col group cursor-pointer ${product.gridSpanClass || ''}`}
-                >
-                  <div className={`relative w-full overflow-hidden bg-black/5 ${product.aspectRatioClass || 'aspect-video'}`}>
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-[2s] ease-out group-hover:scale-105"
-                      style={{ backgroundImage: `url(${product.imageUrl})` }}
-                    ></div>
-                  </div>
-                  <div className="mt-6 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-                    <div className="flex-1 max-w-2xl">
-                      <h3 className="text-2xl sm:text-3xl font-semibold mb-2 text-black font-sans">
-                        {product.name}
-                      </h3>
-                      <p className="text-sm sm:text-base font-medium leading-relaxed text-black/60">
-                        {product.tagline}
-                      </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
+              {vehicles.map((vehicle, index) => {
+                const gridSpanClass = index % 3 === 0 ? 'md:col-span-2' : 'md:col-span-1';
+                const aspectRatioClass = index % 3 === 0 ? 'aspect-video sm:aspect-[21/9]' : 'aspect-[4/3]';
+
+                return (
+                  <div
+                    key={vehicle.id}
+                    className={`flex flex-col group ${gridSpanClass}`}
+                  >
+                    <div className={`relative w-full overflow-hidden bg-black/5 rounded-lg ${aspectRatioClass}`}>
+                      <div
+                        className="absolute inset-0 bg-cover bg-center transition-transform duration-[2s] ease-out group-hover:scale-105"
+                        style={{ backgroundImage: `url(${vehicle.image_url})` }}
+                      ></div>
                     </div>
-                    <div className="shrink-0">
-                      <a
-                        className="inline-block text-center text-xs font-bold tracking-[0.1em] uppercase px-8 py-3.5 rounded active:scale-95 transition-all duration-300 shadow-sm cursor-pointer bg-black text-white hover:bg-black/90"
-                        href={product.orderUrl}
-                      >
-                        Order Now
-                      </a>
+                    <div className="mt-6 flex flex-col sm:flex-row sm:items-end justify-between gap-6 bg-white p-6 rounded-xl border border-black/5 shadow-sm">
+                      <div className="flex-1 max-w-2xl">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="text-xs font-mono font-bold uppercase tracking-wider text-black/40">
+                            {vehicle.type || 'Electric Vehicle'}
+                          </span>
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            Part Payment: ${(vehicle.part_payment_amount || 5000).toLocaleString()}
+                          </span>
+                        </div>
+                        <h3 className="text-2xl sm:text-3xl font-semibold text-black font-sans mb-1">
+                          {vehicle.name}
+                        </h3>
+                        <p className="text-sm text-black/60 font-medium mb-3">
+                          {vehicle.description}
+                        </p>
+                        {vehicle.range && (
+                          <div className="flex flex-wrap gap-4 text-xs font-mono text-black/70">
+                            <span>Range: <strong>{vehicle.range}</strong></span>
+                            <span>Top Speed: <strong>{vehicle.top_speed}</strong></span>
+                            <span>0-60: <strong>{vehicle.acceleration}</strong></span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="shrink-0 flex flex-col items-end gap-2">
+                        <span className="text-lg font-black text-black">
+                          ${vehicle.full_price.toLocaleString()}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleOrderNow(vehicle, e)}
+                          disabled={orderingVehicleId === vehicle.id}
+                          className="w-full sm:w-auto inline-block text-center text-xs font-bold tracking-[0.1em] uppercase px-8 py-3.5 rounded active:scale-95 transition-all duration-300 shadow-sm cursor-pointer bg-black text-white hover:bg-black/90 disabled:opacity-50"
+                        >
+                          {orderingVehicleId === vehicle.id ? 'Processing...' : 'Order Now'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
@@ -209,7 +273,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ products = INITIAL_PRODUCTS 
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
-                href="/invest/register"
+                href="/invest/signup"
                 className="w-full sm:w-[220px] text-center bg-black text-white text-[11px] sm:text-xs font-bold tracking-[0.15em] uppercase px-6 py-3 rounded-full hover:bg-black/90 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-md"
               >
                 Create Account

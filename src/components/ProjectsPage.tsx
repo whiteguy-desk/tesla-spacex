@@ -1,21 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Loader2, AlertCircle, FolderOpen } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-
-export interface DbProject {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  category: string | null;
-  status: string | null;
-  target_amount: number | null;
-  display_metric: string | null;
-  image_url: string | null;
-  metadata: Record<string, any> | null;
-  created_at: string;
-  updated_at: string;
-}
+import { fetchProjects as loadProjects, type Project } from '../lib/projects';
 
 export interface ProjectItem {
   id: string;
@@ -132,16 +117,10 @@ export const ProjectsPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const { data, error: fetchError } = await supabase
-          .from('projects')
-          .select('id, name, slug, description, category, status, target_amount, display_metric, image_url, metadata, created_at, updated_at');
+        const rawData = await loadProjects();
 
-        if (fetchError) {
-          throw fetchError;
-        }
-
-        if (isMounted && data) {
-          const mapped: ProjectItem[] = (data as DbProject[]).map((db) => {
+        if (isMounted) {
+          const mapped: ProjectItem[] = (rawData as Project[]).map((db) => {
             const style = getCategoryStyles(db.category);
             return {
               id: db.id,
