@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { Homepage } from './components/Homepage';
 import { Footer } from './components/Footer';
 import { InvestPage } from './components/InvestPage';
+import { ProjectsPage } from './components/ProjectsPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
 
@@ -24,6 +25,7 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('TESLA')).toBeTruthy();
     expect(screen.getByRole('navigation')).toBeTruthy();
     expect(screen.getByText('How It Works')).toBeTruthy();
+    expect(screen.getByText('Projects')).toBeTruthy();
   });
 
   it('renders Homepage with Shop and Invest sections', () => {
@@ -39,6 +41,7 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('© 2025 Tesla, Inc. Test Copyright')).toBeTruthy();
     expect(screen.getByText('Vehicles & Shop')).toBeTruthy();
     expect(screen.getAllByText('How It Works').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Projects').length).toBeGreaterThan(0);
   });
 
   it('renders InvestPage directly with hero and opportunity sections', () => {
@@ -48,6 +51,25 @@ describe('Tesla UI Clone Components', () => {
     expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
     expect(screen.getByText('xAI Colossus II — 1M GPU Cluster')).toBeTruthy();
     expect(screen.getByText('Gigafactory Mexico — Phase 1')).toBeTruthy();
+  });
+
+  it('renders ProjectsPage directly with hero stats and project cards', () => {
+    render(<ProjectsPage />);
+    expect(screen.getByText('Private Market Access')).toBeTruthy();
+    expect(screen.getAllByText(/Investment/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Opportunities/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('Open Now')).toBeTruthy();
+    expect(screen.getByText('Total Projects')).toBeTruthy();
+    expect(screen.getByText('Max Projected Yield')).toBeTruthy();
+
+    expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
+    expect(screen.getByText('xAI Colossus II — 1M GPU Cluster')).toBeTruthy();
+    expect(screen.getByText('Gigafactory Mexico — Phase 1')).toBeTruthy();
+    expect(screen.getByText('Starship Commercial Fleet Expansion')).toBeTruthy();
+    expect(screen.getByText('Underground Tunnel Network')).toBeTruthy();
+    expect(screen.getByText('Space City Infrastructure Fund')).toBeTruthy();
+    expect(screen.getByText('Las Vegas Loop — Convention Centre Phase 3')).toBeTruthy();
+    expect(screen.getByText('Neuralink N2 — Expanded Clinical Programme')).toBeTruthy();
   });
 
   it('renders ShopPage directly with vehicle products and interactive hero carousel', () => {
@@ -90,6 +112,14 @@ describe('Tesla UI Clone Components', () => {
     render(<App />);
     expect(screen.getByText('TESLA')).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: /^invest$/i })).toBeTruthy();
+  });
+
+  it('renders ProjectsPage in App layout when on /projects route', () => {
+    window.history.pushState({}, '', '/projects');
+    render(<App />);
+    expect(screen.getByText('TESLA')).toBeTruthy();
+    expect(screen.getByText('Private Market Access')).toBeTruthy();
+    expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
   });
 
   it('renders InvestPage in App layout when on /invest route', () => {

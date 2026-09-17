@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Homepage } from './components/Homepage';
 import { InvestPage } from './components/InvestPage';
+import { ProjectsPage } from './components/ProjectsPage';
 import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
 import { Footer } from './components/Footer';
@@ -20,9 +21,9 @@ export function App() {
   }, []);
 
   const isHowItWorksRoute = currentPath.startsWith('/how-it-works');
+  const isProjectsRoute = currentPath.startsWith('/projects');
   const isInvestRoute =
     currentPath.startsWith('/invest') ||
-    currentPath.startsWith('/projects') ||
     currentPath.startsWith('/tunnel') ||
     currentPath.startsWith('/ai');
   const isShopRoute = currentPath.startsWith('/shop');
@@ -30,6 +31,9 @@ export function App() {
   const renderContent = () => {
     if (isHowItWorksRoute) {
       return <HowItWorksPage />;
+    }
+    if (isProjectsRoute) {
+      return <ProjectsPage />;
     }
     if (isInvestRoute) {
       return <InvestPage />;
