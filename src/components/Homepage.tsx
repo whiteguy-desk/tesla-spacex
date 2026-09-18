@@ -158,8 +158,8 @@ export const Homepage: React.FC = () => {
             >
               <div className="relative h-60 w-full overflow-hidden bg-zinc-900">
                 <img
-                  src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80"
-                  alt="Cybertruck"
+                  src="https://upload.wikimedia.org/wikipedia/commons/f/f5/Foundation_series_Cybertruck_at_dusk_in_San_Jose_dllu.jpg"
+                  alt="Tesla Cybertruck Foundation Series"
                   className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 filter brightness-90 group-hover:brightness-100"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#121216] via-transparent to-transparent" />
