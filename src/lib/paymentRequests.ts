@@ -87,6 +87,7 @@ async function sendPaymentRequest(
   const userId = session?.user?.id;
 
   if (!userId) {
+    console.warn('[PaymentRequest] User session not found.');
     return {
       success: false,
       requestId: null,
@@ -100,22 +101,41 @@ async function sendPaymentRequest(
   const referenceId = `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   try {
+    const headers: Record<string, string> = {};
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('submit-payment-request', {
       body: {
         request_type: requestType,
         reference_id: referenceId,
         ...payload,
       },
+      headers,
     });
 
     if (edgeErr) {
-      console.error('Edge function invocation error:', edgeErr);
+      console.error('[Edge Function Invocation Error Details]:', {
+        name: edgeErr.name,
+        message: edgeErr.message,
+        status: (edgeErr as any)?.status,
+        context: (edgeErr as any)?.context,
+      });
+
+      let userMessage = 'Unable to submit your request right now. Please try again later.';
+      if (edgeErr.message?.includes('401') || edgeErr.message?.includes('Unauthorized')) {
+        userMessage = 'Your session has expired. Please sign in again.';
+      } else if (edgeErr.message?.includes('503') || edgeErr.message?.includes('500') || edgeErr.message?.includes('Failed to fetch')) {
+        userMessage = 'Payment request service is temporarily unavailable. Please try again in a few moments.';
+      }
+
       return {
         success: false,
         requestId: null,
         referenceId: null,
         status: 'pending',
-        message: edgeErr.message || 'Unable to submit your request right now. Please try again later.',
+        message: userMessage,
         error: new Error(edgeErr.message),
       };
     }
