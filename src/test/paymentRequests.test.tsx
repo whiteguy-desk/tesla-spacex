@@ -11,6 +11,7 @@ import {
 } from '../lib/paymentRequests';
 import { DepositPage } from '../components/dashboard/DepositPage';
 import { WithdrawalPage } from '../components/dashboard/WithdrawalPage';
+import { supabase } from '../lib/supabase';
 
 // Mock Supabase client
 const mockInsert = vi.fn().mockReturnThis();
@@ -151,6 +152,21 @@ describe('Centralized Payment Request System', () => {
 
     expect(result.success).toBe(true);
     expect(result.status).toBe('pending');
+  });
+
+  it('does NOT trigger direct database fallback when edge function fails', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
+      data: null,
+      error: { name: 'FunctionsFetchError', message: 'Network connection failed' },
+    });
+
+    const result = await submitDepositRequest({
+      amount: 100,
+      currency: 'USD',
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it('renders DepositPage form and shows in-app success state on submission without Telegram redirect', async () => {

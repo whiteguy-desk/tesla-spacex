@@ -91,11 +91,11 @@ serve(async (req) => {
       : user.email?.split('@')[0] || 'User';
     const userEmail = user.email || '';
 
-    const ref = reference_id || `REQ-${Math.floor(100000 + Math.random() * 900000)}`;
+    const ref = reference_id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
     let recordId = ref;
     let detailSummary = '';
 
-    // Insert into appropriate table based on request_type
+    // Step 1: Database persistence comes first
     switch (request_type) {
       case 'deposit': {
         const { data: deposit, error: depErr } = await supabaseAdmin
@@ -114,7 +114,7 @@ serve(async (req) => {
 
         if (depErr) throw depErr;
         recordId = deposit.id;
-        detailSummary = `Amount: $${amount.toLocaleString()} ${currency}`;
+        detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency}`;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -146,7 +146,7 @@ serve(async (req) => {
 
         if (wthErr) throw wthErr;
         recordId = wth.id;
-        detailSummary = `Amount: $${amount.toLocaleString()} ${currency} (${asset_name || vehicle_name || 'Account Balance'})`;
+        detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency} (${asset_name || vehicle_name || 'Account Balance'})`;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -181,7 +181,7 @@ serve(async (req) => {
 
         if (ordErr) throw ordErr;
         recordId = order.id;
-        detailSummary = `Vehicle: ${vehicle_name || 'Tesla Vehicle'} (Part Payment: $${part_payment_amount.toLocaleString()})`;
+        detailSummary = `Vehicle: ${vehicle_name || 'Tesla Vehicle'} (Part Payment: $${Number(part_payment_amount || 5000).toLocaleString()})`;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -212,7 +212,7 @@ serve(async (req) => {
 
         if (invErr) throw invErr;
         recordId = inv.id;
-        detailSummary = `Project: ${project_name || 'Investment Project'} - Amount: $${amount.toLocaleString()}`;
+        detailSummary = `Project: ${project_name || 'Investment Project'} - Amount: $${Number(amount).toLocaleString()}`;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -241,7 +241,7 @@ serve(async (req) => {
 
         if (subErr) throw subErr;
         recordId = sub.id;
-        detailSummary = `Selected Tier/Plan: ${plan_name || plan_id || 'Membership'} ($${amount.toLocaleString()})`;
+        detailSummary = `Selected Tier/Plan: ${plan_name || plan_id || 'Membership'} ($${Number(amount).toLocaleString()})`;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -256,86 +256,105 @@ serve(async (req) => {
       }
     }
 
-    // EMAIL NOTIFICATION DELIVERY VIA RESEND
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    // Step 2: Transactional email delivery via Brevo Transactional Email API
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
     let emailSent = false;
     let emailErrorMessage = null;
 
-    if (resendApiKey) {
+    if (brevoApiKey) {
       try {
-        const requestTypeLabel = request_type.replace('_', ' ').toUpperCase();
+        const requestTypeLabel = request_type.replace(/_/g, ' ').toUpperCase();
         const requestDate = new Date().toISOString();
 
-        // 1. Admin Email
+        // 1. Admin Email Content
         const adminEmailContent = `
-          <h2>New ${requestTypeLabel} Request — Tesla & Spacex</h2>
-          <p>A new request has been submitted by an authenticated user.</p>
-          <ul>
-            <li><strong>Request Type:</strong> ${request_type}</li>
-            <li><strong>Request ID / Reference:</strong> ${recordId}</li>
-            <li><strong>User Full Name:</strong> ${userFullName}</li>
-            <li><strong>User Email:</strong> ${userEmail}</li>
-            <li><strong>User ID:</strong> ${user.id}</li>
-            <li><strong>Amount / Currency:</strong> $${amount.toLocaleString()} ${currency}</li>
-            <li><strong>Details:</strong> ${detailSummary}</li>
-            ${payment_method ? `<li><strong>Payment Method:</strong> ${payment_method}</li>` : ''}
-            ${notes ? `<li><strong>Notes / Reason:</strong> ${notes}</li>` : ''}
-            <li><strong>Request Date:</strong> ${requestDate}</li>
-            <li><strong>Current Status:</strong> pending</li>
-          </ul>
+          <div style="font-family: Arial, sans-serif; color: #111; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #e82127;">New ${requestTypeLabel} Request — Tesla & Spacex</h2>
+            <p>A new payment/service request has been submitted by an authenticated user and stored in database.</p>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Request Type:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${request_type}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Record ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${recordId}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Reference ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${ref}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>User Full Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${userFullName}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>User Registered Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${userEmail}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>User ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${user.id}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Amount / Currency:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Details:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${detailSummary}</td></tr>
+              ${payment_method ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Payment Method:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${payment_method}</td></tr>` : ''}
+              ${notes ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Notes / Reason:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${notes}</td></tr>` : ''}
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Request Timestamp:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${requestDate}</td></tr>
+              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Status:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee; color: #d97706; font-weight: bold;">pending</td></tr>
+            </table>
+          </div>
         `;
 
-        const adminRes = await fetch('https://api.resend.com/emails', {
+        // 2. User Confirmation Email Content
+        const userEmailContent = `
+          <div style="font-family: Arial, sans-serif; color: #111; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+            <h2 style="color: #111; border-bottom: 2px solid #e82127; padding-bottom: 8px;">Tesla & Spacex — Request Confirmation</h2>
+            <p>Dear ${userFullName},</p>
+            <p>Your request for <strong>${requestTypeLabel}</strong> has been received and registered under status <strong>PENDING REVIEW</strong>.</p>
+
+            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 4px solid #e82127; margin: 20px 0;">
+              <p style="margin: 0 0 8px 0;"><strong>Reference ID:</strong> ${ref}</p>
+              <p style="margin: 0 0 8px 0;"><strong>Request ID:</strong> ${recordId}</p>
+              <p style="margin: 0;"><strong>Summary:</strong> ${detailSummary}</p>
+            </div>
+
+            <p><strong>Next Steps:</strong> Our team will review your request and reach out directly to your registered email address (<strong>${userEmail}</strong>) with instructions and details.</p>
+            <p style="font-size: 13px; color: #666;">Note: Submitting a request registers your interest in our system for review. No automated charge or completion is implied at this step.</p>
+
+            <p style="margin-top: 24px;">Sincerely,<br/><strong>Tesla & Spacex Platform Team</strong></p>
+          </div>
+        `;
+
+        // Send Admin Notification via Brevo API
+        const adminRes = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${resendApiKey}`,
+            'api-key': brevoApiKey,
             'Content-Type': 'application/json',
+            'accept': 'application/json',
           },
           body: JSON.stringify({
-            from: 'Tesla & Spacex <onboarding@resend.dev>',
-            to: [ADMIN_EMAIL],
-            subject: `New ${requestTypeLabel} Request — Tesla & Spacex (${recordId})`,
-            html: adminEmailContent,
+            sender: { name: 'Tesla & Spacex', email: ADMIN_EMAIL },
+            to: [{ email: ADMIN_EMAIL, name: 'Tesla & Spacex Admin' }],
+            subject: `New ${requestTypeLabel} Request — Tesla & Spacex (${ref})`,
+            htmlContent: adminEmailContent,
           }),
         });
 
-        // 2. User Confirmation Email
-        const userEmailContent = `
-          <h2>Your Tesla & Spacex Request Has Been Received</h2>
-          <p>Hello ${userFullName},</p>
-          <p>Your <strong>${requestTypeLabel}</strong> request has been received and is currently pending review.</p>
-          <p><strong>Reference ID:</strong> ${recordId}</p>
-          <p><strong>Request Summary:</strong> ${detailSummary}</p>
-          <p>Our team will review your request and contact you directly through your registered email address (<strong>${userEmail}</strong>) with settlement details and next steps.</p>
-          <br/>
-          <p>Thank you for choosing Tesla & Spacex.</p>
-        `;
-
-        const userRes = await fetch('https://api.resend.com/emails', {
+        // Send User Confirmation via Brevo API
+        const userRes = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${resendApiKey}`,
+            'api-key': brevoApiKey,
             'Content-Type': 'application/json',
+            'accept': 'application/json',
           },
           body: JSON.stringify({
-            from: 'Tesla & Spacex <onboarding@resend.dev>',
-            to: [userEmail],
-            subject: `Your Tesla & Spacex Request Has Been Received (#${recordId.slice(0, 8)})`,
-            html: userEmailContent,
+            sender: { name: 'Tesla & Spacex', email: ADMIN_EMAIL },
+            to: [{ email: userEmail, name: userFullName }],
+            subject: `Your Tesla & Spacex Request Has Been Received (#${ref.slice(0, 10)})`,
+            htmlContent: userEmailContent,
           }),
         });
 
         if (adminRes.ok && userRes.ok) {
           emailSent = true;
         } else {
-          emailErrorMessage = 'Email provider returned an error response.';
+          const adminErrText = adminRes.ok ? '' : await adminRes.text();
+          const userErrText = userRes.ok ? '' : await userRes.text();
+          emailErrorMessage = `Brevo API response warning: ${adminErrText || userErrText}`;
+          console.warn('Brevo email delivery warning:', emailErrorMessage);
         }
       } catch (err: any) {
-        console.error('Error sending email notification:', err);
-        emailErrorMessage = err?.message || 'Email sending failed';
+        console.error('Error delivering email via Brevo:', err);
+        emailErrorMessage = err?.message || 'Brevo email sending failed';
       }
     } else {
-      console.warn('RESEND_API_KEY environment variable is not configured.');
+      console.warn('BREVO_API_KEY environment secret is not configured.');
+      emailErrorMessage = 'BREVO_API_KEY secret missing';
     }
 
     return new Response(
@@ -348,7 +367,7 @@ serve(async (req) => {
         emailErrorMessage,
         message: emailSent
           ? 'Your request has been submitted successfully. Our team will contact you via your registered email address.'
-          : 'Your request was saved successfully, but we could not send the notification email right now. Please try again shortly.',
+          : 'Your request was received and is pending review. We could not send the notification email right now, but your request has been saved.',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
