@@ -1,5 +1,5 @@
 -- Supabase Migration: Payment Requests Overhaul & Transactions Schema Standardisation
--- Ensures compatible UUID / TEXT primary and foreign keys, domain tables for requests, default statuses, and RLS security.
+-- Ensures compatible UUID primary and foreign keys across domain tables, default statuses, and RLS security.
 
 -- Enable UUID extension if not enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS public.deposits (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure payment_method and notes columns exist if table previously existed
 ALTER TABLE public.deposits ADD COLUMN IF NOT EXISTS payment_method TEXT;
 ALTER TABLE public.deposits ADD COLUMN IF NOT EXISTS notes TEXT;
 
@@ -40,11 +39,10 @@ ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS asset_name TEXT;
 ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- 3. ORDERS TABLE
--- Note: vehicle_id is TEXT matching vehicles.id (e.g. 'model-3', 'cybertruck')
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  vehicle_id TEXT REFERENCES public.vehicles(id) ON DELETE SET NULL,
+  vehicle_id UUID REFERENCES public.vehicles(id) ON DELETE SET NULL,
   vehicle_name TEXT NOT NULL,
   quantity INTEGER DEFAULT 1,
   full_price NUMERIC(15, 2) NOT NULL,
@@ -61,11 +59,10 @@ CREATE TABLE IF NOT EXISTS public.orders (
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- 4. INVESTMENTS TABLE
--- Note: project_id is TEXT matching projects.id (e.g. 'doge-reserve-fund', 'xai-colossus-ii-gpu-cluster')
 CREATE TABLE IF NOT EXISTS public.investments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  project_id TEXT REFERENCES public.projects(id) ON DELETE SET NULL,
+  project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
   project_name TEXT,
   amount NUMERIC(15, 2) NOT NULL,
   currency TEXT DEFAULT 'USD',
@@ -78,11 +75,10 @@ CREATE TABLE IF NOT EXISTS public.investments (
 ALTER TABLE public.investments ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- 5. USER SUBSCRIPTIONS TABLE
--- Note: plan_id is TEXT matching membership_tiers.id (e.g. 'silver', 'gold', 'platinum')
 CREATE TABLE IF NOT EXISTS public.user_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  plan_id TEXT NOT NULL REFERENCES public.membership_tiers(id),
+  plan_id UUID REFERENCES public.membership_tiers(id) ON DELETE SET NULL,
   status TEXT DEFAULT 'pending',
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
