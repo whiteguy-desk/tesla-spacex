@@ -120,16 +120,54 @@ describe('Centralized Payment Request System', () => {
     expect(result.status).toBe('pending');
   });
 
-  it('submits vehicle purchase request via paymentRequests service', async () => {
+  it('submits vehicle purchase part-payment request with correct amount calculation', async () => {
     const result = await submitVehiclePurchaseRequest({
       vehicleId: 'cybertruck',
       vehicleName: 'Cybertruck',
-      fullPrice: 49999,
+      paymentOption: 'part',
+      fullPrice: 80000,
       partPaymentAmount: 5000,
     });
 
     expect(result.success).toBe(true);
     expect(result.status).toBe('pending');
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'submit-payment-request',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          request_type: 'vehicle_purchase',
+          payment_option: 'part',
+          full_price: 80000,
+          part_payment_amount: 5000,
+          amount: 5000,
+        }),
+      })
+    );
+  });
+
+  it('submits vehicle purchase full-payment request with correct amount calculation', async () => {
+    const result = await submitVehiclePurchaseRequest({
+      vehicleId: 'cybertruck',
+      vehicleName: 'Cybertruck',
+      paymentOption: 'full',
+      fullPrice: 80000,
+      partPaymentAmount: 5000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.status).toBe('pending');
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'submit-payment-request',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          request_type: 'vehicle_purchase',
+          payment_option: 'full',
+          full_price: 80000,
+          part_payment_amount: 5000,
+          amount: 80000,
+        }),
+      })
+    );
   });
 
   it('submits investment request via paymentRequests service', async () => {
