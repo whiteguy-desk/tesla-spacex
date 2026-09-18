@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { CreditCard, ShieldCheck, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchMembershipTiers, type MembershipTier } from '../../lib/plans';
-import { fetchUserDashboardData, subscribeToPlan } from '../../lib/dashboard';
+import { fetchUserDashboardData } from '../../lib/dashboard';
+import { submitMembershipUpgradeRequest } from '../../lib/paymentRequests';
 
 export const MembershipPage: React.FC = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,16 +38,18 @@ export const MembershipPage: React.FC = () => {
     setUpgradingId(tier.id);
     setStatusMessage(null);
 
-    const { success, error } = await subscribeToPlan(user.id, tier.id, tier.name, tier.price);
+    const result = await submitMembershipUpgradeRequest({
+      tierId: tier.id,
+      tierName: tier.name,
+      price: tier.price,
+    });
 
     setUpgradingId(null);
 
-    if (error) {
-      setStatusMessage(`Error: ${error.message}`);
-    } else if (success) {
-      setActivePlanId(tier.id);
-      setStatusMessage(`Successfully selected ${tier.name} Tier!`);
-      await refreshProfile();
+    if (!result.success) {
+      setStatusMessage(`Error submitting upgrade request: ${result.message}`);
+    } else {
+      setStatusMessage(`Upgrade request for ${tier.name} Tier submitted successfully! Reference: ${(result.referenceId || result.requestId || '').slice(0, 8)}. Settlement details will be sent to your email (${user.email}).`);
     }
   };
 
@@ -67,14 +70,14 @@ export const MembershipPage: React.FC = () => {
           Membership <span className="text-white/40">Cards</span>
         </h1>
         <p className="text-xs text-white/50 font-light mt-1">
-          Explore and manage your active membership card status, privileges, and tier upgrades.
+          Explore and manage your active membership card status, privileges, and tier upgrade requests.
         </p>
       </div>
 
       {statusMessage && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" />
-          {statusMessage}
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{statusMessage}</span>
         </div>
       )}
 
@@ -152,10 +155,10 @@ export const MembershipPage: React.FC = () => {
                       Active Membership
                     </>
                   ) : upgradingId === tier.id ? (
-                    'Updating...'
+                    'Submitting...'
                   ) : (
                     <>
-                      Upgrade to {tier.name}
+                      Request {tier.name} Upgrade
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}

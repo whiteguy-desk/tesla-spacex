@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, CheckCircle, X } from 'lucide-react';
 import { fetchVehicles, type Vehicle } from '../lib/vehicles';
 import { useAuth } from '../hooks/useAuth';
-import { createVehicleOrder } from '../lib/dashboard';
-import { buildVehicleOrderTelegramUrl } from '../lib/telegram';
+import { submitVehiclePurchaseRequest } from '../lib/paymentRequests';
 
 export interface ShopPageProps {
   initialVehicles?: Vehicle[];
@@ -14,9 +13,15 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [orderingVehicleId, setOrderingVehicleId] = useState<string | null>(null);
-  const [orderSuccessMessage, setOrderSuccessMessage] = useState<string | null>(null);
 
-  const { user, profile } = useAuth();
+  // Success Modal state
+  const [successModalData, setSuccessModalData] = useState<{
+    referenceId: string;
+    vehicleName: string;
+    partPayment: number;
+  } | null>(null);
+
+  const { user } = useAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -49,45 +54,29 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
     }
 
     setOrderingVehicleId(vehicle.id);
-    setOrderSuccessMessage(null);
 
-    const customerName = profile?.first_name
-      ? `${profile.first_name} ${profile.last_name || ''}`.trim()
-      : user.email?.split('@')[0] || 'Customer';
-    const customerEmail = user.email || '';
-
-    const { order, error } = await createVehicleOrder(
-      user.id,
-      vehicle,
-      1,
-      customerName,
-      customerEmail
-    );
+    const result = await submitVehiclePurchaseRequest({
+      vehicleId: vehicle.id,
+      vehicleName: vehicle.name,
+      fullPrice: vehicle.full_price,
+      partPaymentAmount: vehicle.part_payment_amount || 5000,
+      quantity: 1,
+    });
 
     setOrderingVehicleId(null);
 
-    if (error) {
-      console.error('Error recording order:', error);
+    if (!result.success) {
+      alert(result.message || 'Unable to submit vehicle order request. Please try again.');
+      return;
     }
 
-    const orderId = order?.id || `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+    const refId = result.referenceId || result.requestId || `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const telegramUrl = buildVehicleOrderTelegramUrl({
-      orderId,
+    setSuccessModalData({
+      referenceId: refId,
       vehicleName: vehicle.name,
-      vehicleId: vehicle.id,
-      quantity: 1,
-      fullPrice: vehicle.full_price,
       partPayment: vehicle.part_payment_amount || 5000,
-      customerName,
-      customerEmail,
     });
-
-    setOrderSuccessMessage(`Order #${orderId.slice(0, 8)} created. Redirecting to Telegram...`);
-
-    setTimeout(() => {
-      window.location.href = telegramUrl;
-    }, 1200);
   };
 
   if (loading) {
@@ -104,10 +93,68 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
   return (
     <div className="bg-[#F4F4F4] text-black min-h-screen">
       <main className="w-full min-h-screen pb-24">
-        {orderSuccessMessage && (
-          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-black text-white px-6 py-3 rounded-full shadow-2xl border border-white/20 flex items-center gap-3 animate-bounce text-xs font-bold tracking-wider uppercase">
-            <CheckCircle className="w-4 h-4 text-emerald-400" />
-            {orderSuccessMessage}
+        {/* IN-APP SUCCESS MODAL */}
+        {successModalData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <div className="bg-zinc-950 text-white border border-white/20 rounded-2xl p-6 sm:p-10 max-w-lg w-full space-y-6 shadow-2xl relative">
+              <button
+                type="button"
+                onClick={() => setSuccessModalData(null)}
+                className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                <CheckCircle className="w-10 h-10 text-emerald-400" />
+              </div>
+
+              <div className="text-center space-y-2">
+                <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase tracking-widest font-mono">
+                  Status: Pending Review
+                </span>
+                <h2 className="text-2xl font-black uppercase tracking-tight text-white">Vehicle Purchase Request Received</h2>
+                <p className="text-xs text-white/70 max-w-sm mx-auto leading-relaxed">
+                  Your order reservation request for <strong>{successModalData.vehicleName}</strong> has been submitted.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-left space-y-2 max-w-sm mx-auto font-mono text-xs">
+                <div className="flex justify-between">
+                  <span className="text-white/40 uppercase text-[10px]">Reference:</span>
+                  <span className="text-emerald-400 font-bold">{successModalData.referenceId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/40 uppercase text-[10px]">Part Payment:</span>
+                  <span className="text-white font-bold">${successModalData.partPayment.toLocaleString()} USD</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/40 uppercase text-[10px]">Registered Email:</span>
+                  <span className="text-white/80">{user?.email}</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-white/50 text-center leading-relaxed max-w-sm mx-auto">
+                Our team will review your request and contact you directly through your registered email address (<strong>{user?.email}</strong>) with settlement details and delivery allocation schedules.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <a
+                  href="/dashboard/orders"
+                  className="flex-1 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider text-center transition-colors shadow-lg"
+                >
+                  View My Orders
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setSuccessModalData(null)}
+                  className="flex-1 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider text-center transition-colors border border-white/10 cursor-pointer"
+                >
+                  Continue Browsing
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
