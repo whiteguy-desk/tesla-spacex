@@ -46,6 +46,7 @@ export function AppContent() {
     currentPath.startsWith('/tunnel') ||
     currentPath.startsWith('/ai');
   const isShopRoute = currentPath.startsWith('/shop');
+  const isMembershipRoute = currentPath === '/membership' || currentPath.startsWith('/membership');
 
   // Redirect authenticated user away from login/signup routes
   useEffect(() => {
@@ -135,6 +136,13 @@ export function AppContent() {
     }
     if (isShopRoute) {
       return <ShopPage />;
+    }
+    if (isMembershipRoute) {
+      return (
+        <div className="max-w-7xl mx-auto px-6 py-28 w-full">
+          <MembershipPage />
+        </div>
+      );
     }
     return <Homepage />;
   };

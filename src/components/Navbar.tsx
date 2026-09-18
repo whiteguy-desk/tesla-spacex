@@ -12,19 +12,22 @@ export interface NavbarProps {
   navItems?: NavItem[];
 }
 
-const defaultNavItems: NavItem[] = [
-  { label: 'Home', href: '/' },
-  { label: 'Projects', href: '/projects' },
-  { label: 'Invest', href: '/invest' },
-  { label: 'Shop', href: '/shop' },
-  { label: 'How It Works', href: '/how-it-works' },
-];
-
 export const Navbar: React.FC<NavbarProps> = ({
-  navItems = defaultNavItems,
+  navItems,
 }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
+
+  const defaultNavItems: NavItem[] = [
+    { label: 'Home', href: '/' },
+    { label: 'Projects', href: '/projects' },
+    { label: 'Invest', href: '/invest' },
+    { label: 'Shop', href: '/shop' },
+    { label: 'Membership', href: user ? '/dashboard/membership' : '/membership' },
+    { label: 'How It Works', href: '/how-it-works' },
+  ];
+
+  const activeNavItems = navItems || defaultNavItems;
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -52,7 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center space-x-8" aria-label="Main Navigation">
-          {navItems.map((item) => {
+          {activeNavItems.map((item) => {
             const isActive = currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href));
             return (
               <a
@@ -199,7 +202,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 px-1 mb-1">
               Explore Platform
             </p>
-            {navItems.map((item) => {
+            {activeNavItems.map((item) => {
               const isActive = currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href));
               return (
                 <a
