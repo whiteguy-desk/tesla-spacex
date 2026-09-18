@@ -121,9 +121,14 @@ describe('Tesla & Spacex UI Components', () => {
   });
 
   it('renders InvestPage directly with hero and opportunity sections', async () => {
-    render(<InvestPage />);
-    expect(screen.getByText(/Own a Stake in/i)).toBeTruthy();
-    expect(screen.getByText("Tomorrow's World")).toBeTruthy();
+    render(
+      <AuthProvider>
+        <InvestPage />
+      </AuthProvider>
+    );
+    expect(screen.getByText(/Next-Generation/i)).toBeTruthy();
+    expect(screen.getByText(/Technology Portfolio/i)).toBeTruthy();
+    expect(screen.getByText(/Mandatory Demo Disclosure & Independent Project Notice/i)).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
       expect(screen.getByText('xAI Colossus II — 1M GPU Cluster')).toBeTruthy();
