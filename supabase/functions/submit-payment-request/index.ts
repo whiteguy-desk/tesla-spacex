@@ -17,6 +17,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to validate UUID format
+function isValidUUID(uuidStr: unknown): boolean {
+  if (typeof uuidStr !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuidStr);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -161,21 +168,38 @@ serve(async (req) => {
       }
 
       case 'vehicle_purchase': {
+        let resolvedVehicleId: string | null = null;
+        if (isValidUUID(vehicle_id)) {
+          resolvedVehicleId = vehicle_id;
+        } else if (vehicle_id) {
+          const { data: vMatch } = await supabaseAdmin
+            .from('vehicles')
+            .select('id')
+            .or(`id.eq.${vehicle_id},slug.eq.${vehicle_id}`);
+          if (vMatch && vMatch.length > 0) {
+            resolvedVehicleId = vMatch[0].id;
+          }
+        }
+
+        const orderPayload: Record<string, any> = {
+          user_id: user.id,
+          vehicle_name: vehicle_name || 'Tesla Vehicle',
+          quantity,
+          full_price: full_price || amount,
+          part_payment_amount: part_payment_amount || 5000,
+          status: 'pending',
+          contact_status: 'awaiting_contact',
+          customer_name: userFullName,
+          customer_email: userEmail,
+          notes,
+        };
+        if (resolvedVehicleId) {
+          orderPayload.vehicle_id = resolvedVehicleId;
+        }
+
         const { data: order, error: ordErr } = await supabaseAdmin
           .from('orders')
-          .insert({
-            user_id: user.id,
-            vehicle_id,
-            vehicle_name: vehicle_name || 'Tesla Vehicle',
-            quantity,
-            full_price: full_price || amount,
-            part_payment_amount: part_payment_amount || 5000,
-            status: 'pending',
-            contact_status: 'awaiting_contact',
-            customer_name: userFullName,
-            customer_email: userEmail,
-            notes,
-          })
+          .insert(orderPayload)
           .select()
           .single();
 
@@ -196,17 +220,34 @@ serve(async (req) => {
       }
 
       case 'investment': {
+        let resolvedProjectId: string | null = null;
+        if (isValidUUID(project_id)) {
+          resolvedProjectId = project_id;
+        } else if (project_id) {
+          const { data: pMatch } = await supabaseAdmin
+            .from('projects')
+            .select('id')
+            .or(`id.eq.${project_id},slug.eq.${project_id}`);
+          if (pMatch && pMatch.length > 0) {
+            resolvedProjectId = pMatch[0].id;
+          }
+        }
+
+        const invPayload: Record<string, any> = {
+          user_id: user.id,
+          project_name: project_name || 'Investment Opportunity',
+          amount,
+          currency,
+          notes,
+          status: 'pending',
+        };
+        if (resolvedProjectId) {
+          invPayload.project_id = resolvedProjectId;
+        }
+
         const { data: inv, error: invErr } = await supabaseAdmin
           .from('investments')
-          .insert({
-            user_id: user.id,
-            project_id,
-            project_name: project_name || 'Investment Opportunity',
-            amount,
-            currency,
-            notes,
-            status: 'pending',
-          })
+          .insert(invPayload)
           .select()
           .single();
 
@@ -228,14 +269,38 @@ serve(async (req) => {
 
       case 'plan_upgrade':
       case 'membership_upgrade': {
+        let resolvedPlanId: string | null = null;
+        if (isValidUUID(plan_id)) {
+          resolvedPlanId = plan_id;
+        } else if (plan_id || plan_name) {
+          const { data: tiers } = await supabaseAdmin
+            .from('membership_tiers')
+            .select('id, name');
+          if (tiers && tiers.length > 0) {
+            const match = tiers.find(
+              (t) =>
+                (plan_id && t.id === plan_id) ||
+                (plan_id && t.name.toLowerCase() === plan_id.toLowerCase()) ||
+                (plan_name && t.name.toLowerCase() === plan_name.toLowerCase())
+            );
+            if (match) {
+              resolvedPlanId = match.id;
+            }
+          }
+        }
+
+        const subPayload: Record<string, any> = {
+          user_id: user.id,
+          status: 'pending',
+          notes: notes || `Request to upgrade to ${plan_name || 'Membership Tier'}`,
+        };
+        if (resolvedPlanId) {
+          subPayload.plan_id = resolvedPlanId;
+        }
+
         const { data: sub, error: subErr } = await supabaseAdmin
           .from('user_subscriptions')
-          .insert({
-            user_id: user.id,
-            plan_id: plan_id || 'tier-request',
-            status: 'pending',
-            notes: notes || `Request to upgrade to ${plan_name || 'Membership Tier'}`,
-          })
+          .insert(subPayload)
           .select()
           .single();
 
@@ -258,13 +323,13 @@ serve(async (req) => {
 
     // Step 2: Transactional email delivery via Brevo Transactional Email API
     const brevoApiKey = Deno.env.get('BREVO_API_KEY');
-    const brevoSenderEmail = Deno.env.get('BREVO_SENDER_EMAIL') || ADMIN_EMAIL;
+    const brevoSenderEmail = Deno.env.get('BREVO_SENDER_EMAIL');
     const brevoSenderName = Deno.env.get('BREVO_SENDER_NAME') || 'Tesla & Spacex';
 
     let emailSent = false;
     let emailErrorMessage = null;
 
-    if (brevoApiKey) {
+    if (brevoApiKey && brevoSenderEmail) {
       try {
         const requestTypeLabel = request_type.replace(/_/g, ' ').toUpperCase();
         const requestDate = new Date().toISOString();
@@ -356,8 +421,8 @@ serve(async (req) => {
         emailErrorMessage = err?.message || 'Brevo email sending failed';
       }
     } else {
-      console.warn('BREVO_API_KEY environment secret is not configured.');
-      emailErrorMessage = 'BREVO_API_KEY secret missing';
+      console.warn('BREVO_API_KEY or BREVO_SENDER_EMAIL environment secret is not configured.');
+      emailErrorMessage = 'BREVO_API_KEY or BREVO_SENDER_EMAIL secret missing';
     }
 
     return new Response(
