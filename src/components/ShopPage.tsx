@@ -18,7 +18,9 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
   const [successModalData, setSuccessModalData] = useState<{
     referenceId: string;
     vehicleName: string;
+    fullPrice: number;
     partPayment: number;
+    balance: number;
   } | null>(null);
 
   const { user } = useAuth();
@@ -72,10 +74,15 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
 
     const refId = result.referenceId || result.requestId || `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
+    const partPay = vehicle.part_payment_amount || 5000;
+    const balance = Math.max(0, vehicle.full_price - partPay);
+
     setSuccessModalData({
       referenceId: refId,
       vehicleName: vehicle.name,
-      partPayment: vehicle.part_payment_amount || 5000,
+      fullPrice: vehicle.full_price,
+      partPayment: partPay,
+      balance,
     });
   };
 
@@ -126,12 +133,20 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
                   <span className="text-emerald-400 font-bold">{successModalData.referenceId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-white/40 uppercase text-[10px]">Part Payment:</span>
-                  <span className="text-white font-bold">${successModalData.partPayment.toLocaleString()} USD</span>
+                  <span className="text-white/40 uppercase text-[10px]">Vehicle Price:</span>
+                  <span className="text-white/80">${successModalData.fullPrice.toLocaleString()} USD</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-white/40 uppercase text-[10px]">Initial Part Payment:</span>
+                  <span className="text-emerald-400 font-bold">${successModalData.partPayment.toLocaleString()} USD</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/40 uppercase text-[10px]">Remaining Balance:</span>
+                  <span className="text-white/80">${successModalData.balance.toLocaleString()} USD</span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-white/10">
                   <span className="text-white/40 uppercase text-[10px]">Registered Email:</span>
-                  <span className="text-white/80">{user?.email}</span>
+                  <span className="text-white/80 truncate max-w-[160px]">{user?.email}</span>
                 </div>
               </div>
 
@@ -179,23 +194,36 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
                 <p className="text-base sm:text-lg text-white/90 mt-2 font-medium tracking-wider drop-shadow-sm max-w-lg mx-auto">
                   {activeVehicle.description}
                 </p>
-                <div className="flex items-center justify-center gap-4 mt-3 text-xs font-bold text-white/90 tracking-widest uppercase">
-                  <span>Full Price: ${activeVehicle.full_price.toLocaleString()}</span>
-                  <span>•</span>
-                  <span className="text-emerald-300">Part Payment: ${(activeVehicle.part_payment_amount || 5000).toLocaleString()}</span>
+                <div className="mt-4 max-w-md mx-auto p-3 sm:p-4 rounded-xl bg-black/60 backdrop-blur-md border border-white/15 text-white shadow-2xl">
+                  <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono">
+                    <div>
+                      <span className="text-white/50 text-[9px] uppercase tracking-wider block">Vehicle Price</span>
+                      <span className="font-bold text-white">${activeVehicle.full_price.toLocaleString()}</span>
+                    </div>
+                    <div className="border-x border-white/15 px-1">
+                      <span className="text-emerald-400 text-[9px] uppercase tracking-wider block font-sans font-bold">Part Payment</span>
+                      <span className="font-bold text-emerald-400">${(activeVehicle.part_payment_amount || 5000).toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50 text-[9px] uppercase tracking-wider block">Balance</span>
+                      <span className="font-bold text-white/90">${Math.max(0, activeVehicle.full_price - (activeVehicle.part_payment_amount || 5000)).toLocaleString()}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 z-10 flex flex-col items-center gap-6 w-full px-6">
+            <div className="absolute bottom-12 sm:bottom-16 left-0 right-0 z-10 flex flex-col items-center gap-6 w-full px-6">
               <div className="w-full max-w-sm mx-auto flex justify-center">
                 <button
                   type="button"
                   onClick={(e) => handleOrderNow(activeVehicle, e)}
                   disabled={orderingVehicleId === activeVehicle.id}
-                  className="w-full sm:w-[260px] text-center bg-white/90 backdrop-blur-md text-black text-xs font-bold tracking-[0.1em] uppercase px-8 py-3.5 rounded hover:bg-white hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-[320px] text-center bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-[0.12em] uppercase px-8 py-3.5 rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-2xl cursor-pointer disabled:opacity-50 border border-red-400/40"
                 >
-                  {orderingVehicleId === activeVehicle.id ? 'Processing...' : 'Order Now'}
+                  {orderingVehicleId === activeVehicle.id
+                    ? 'Submitting Request...'
+                    : `Request Part Payment ($${(activeVehicle.part_payment_amount || 5000).toLocaleString()})`}
                 </button>
               </div>
 
@@ -287,17 +315,31 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
                           </div>
                         )}
                       </div>
-                      <div className="shrink-0 flex flex-col items-end gap-2">
-                        <span className="text-lg font-black text-black">
-                          ${vehicle.full_price.toLocaleString()}
-                        </span>
+                      <div className="shrink-0 flex flex-col items-start sm:items-end gap-3 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-black/10">
+                        <div className="w-full sm:w-auto p-3 rounded-xl bg-black/[0.03] border border-black/10 font-mono text-xs space-y-1">
+                          <div className="flex justify-between sm:justify-end gap-3 text-black/60 text-[10px]">
+                            <span>Vehicle Price:</span>
+                            <span className="font-bold text-black">${vehicle.full_price.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between sm:justify-end gap-3 text-emerald-700 text-[10px] font-bold">
+                            <span>Initial Part Payment:</span>
+                            <span>${(vehicle.part_payment_amount || 5000).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between sm:justify-end gap-3 text-black/60 text-[10px]">
+                            <span>Remaining Balance:</span>
+                            <span className="font-bold text-black/80">${Math.max(0, vehicle.full_price - (vehicle.part_payment_amount || 5000)).toLocaleString()}</span>
+                          </div>
+                        </div>
+
                         <button
                           type="button"
                           onClick={(e) => handleOrderNow(vehicle, e)}
                           disabled={orderingVehicleId === vehicle.id}
-                          className="w-full sm:w-auto inline-block text-center text-xs font-bold tracking-[0.1em] uppercase px-8 py-3.5 rounded active:scale-95 transition-all duration-300 shadow-sm cursor-pointer bg-black text-white hover:bg-black/90 disabled:opacity-50"
+                          className="w-full sm:w-auto text-center text-xs font-bold tracking-[0.1em] uppercase px-6 py-3.5 rounded-full active:scale-95 transition-all duration-300 shadow-md cursor-pointer bg-red-600 text-white hover:bg-red-500 disabled:opacity-50"
                         >
-                          {orderingVehicleId === vehicle.id ? 'Processing...' : 'Order Now'}
+                          {orderingVehicleId === vehicle.id
+                            ? 'Submitting Request...'
+                            : `Request Part Payment ($${(vehicle.part_payment_amount || 5000).toLocaleString()})`}
                         </button>
                       </div>
                     </div>

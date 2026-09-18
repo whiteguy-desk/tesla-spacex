@@ -258,6 +258,9 @@ serve(async (req) => {
 
     // Step 2: Transactional email delivery via Brevo Transactional Email API
     const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+    const brevoSenderEmail = Deno.env.get('BREVO_SENDER_EMAIL') || ADMIN_EMAIL;
+    const brevoSenderName = Deno.env.get('BREVO_SENDER_NAME') || 'Tesla & Spacex';
+
     let emailSent = false;
     let emailErrorMessage = null;
 
@@ -317,7 +320,7 @@ serve(async (req) => {
             'accept': 'application/json',
           },
           body: JSON.stringify({
-            sender: { name: 'Tesla & Spacex', email: ADMIN_EMAIL },
+            sender: { name: brevoSenderName, email: brevoSenderEmail },
             to: [{ email: ADMIN_EMAIL, name: 'Tesla & Spacex Admin' }],
             subject: `New ${requestTypeLabel} Request — Tesla & Spacex (${ref})`,
             htmlContent: adminEmailContent,
@@ -333,7 +336,7 @@ serve(async (req) => {
             'accept': 'application/json',
           },
           body: JSON.stringify({
-            sender: { name: 'Tesla & Spacex', email: ADMIN_EMAIL },
+            sender: { name: brevoSenderName, email: brevoSenderEmail },
             to: [{ email: userEmail, name: userFullName }],
             subject: `Your Tesla & Spacex Request Has Been Received (#${ref.slice(0, 10)})`,
             htmlContent: userEmailContent,
