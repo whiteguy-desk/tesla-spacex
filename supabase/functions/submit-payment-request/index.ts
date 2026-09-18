@@ -1,4 +1,3 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const ADMIN_EMAIL = 'elonmusk2580800@gmail.com';
@@ -15,6 +14,7 @@ const ALLOWED_REQUEST_TYPES = [
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 // Helper to validate UUID format strictly
@@ -24,21 +24,27 @@ function isValidUUID(uuidStr: unknown): boolean {
   return uuidRegex.test(uuidStr);
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  console.log(`[Edge Function Request] Method: ${req.method} | URL: ${req.url}`);
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   try {
     const authHeader = req.headers.get('Authorization');
+    const hasAuthHeader = Boolean(authHeader);
+    console.log(`[Edge Function Auth Header Present]: ${hasAuthHeader}`);
+
     if (!authHeader) {
+      console.warn('[Edge Function Auth] Missing Authorization header');
       return new Response(
         JSON.stringify({ error: 'Unauthorized: Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace('Bearer ', '').trim();
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
@@ -50,11 +56,14 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
 
     if (userError || !user) {
+      console.warn('[Edge Function Auth] User authentication failed:', userError?.message || 'No user session found');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid user session' }),
+        JSON.stringify({ error: 'Unauthorized: Invalid user session', details: userError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`[Edge Function Authenticated User] ID: ${user.id} | Email: ${user.email}`);
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -74,13 +83,15 @@ serve(async (req) => {
       plan_name,
       notes,
       asset_name,
-      order_id,
       quantity = 1,
       full_price = 0,
       part_payment_amount = 0,
     } = body;
 
+    console.log(`[Edge Function Payload] request_type: ${request_type} | amount: ${amount} ${currency}`);
+
     if (!request_type || !ALLOWED_REQUEST_TYPES.includes(request_type)) {
+      console.warn(`[Edge Function Bad Request] Invalid request type: ${request_type}`);
       return new Response(
         JSON.stringify({ error: `Invalid request type. Allowed: ${ALLOWED_REQUEST_TYPES.join(', ')}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -104,7 +115,7 @@ serve(async (req) => {
     let detailSummary = '';
     let emailDetailsHTML = '';
 
-    // Step 1: Database persistence comes first
+    // Step 1: Database persistence comes first with strict error checks
     switch (request_type) {
       case 'deposit': {
         const { data: deposit, error: depErr } = await supabaseAdmin
@@ -121,15 +132,20 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (depErr) throw depErr;
+        if (depErr) {
+          console.error('[DB Insert Error - Deposits]', depErr);
+          throw new Error(`Failed to save deposit record: ${depErr.message}`);
+        }
         recordId = deposit.id;
+        console.log(`[DB Insert Success - Deposit] ID: ${recordId}`);
+
         detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency} | Payment Method: ${payment_method || 'Standard Deposit'}`;
         emailDetailsHTML = `
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Deposit Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Payment Method:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${payment_method || 'Standard Deposit'}</td></tr>
         `;
 
-        await supabaseAdmin.from('transactions').insert({
+        const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: 'deposit',
           amount,
@@ -138,6 +154,12 @@ serve(async (req) => {
           reference: ref,
           description: `Deposit request initiated (${ref})`,
         });
+
+        if (txErr) {
+          console.error('[DB Insert Error - Deposit Transaction]', txErr);
+          throw new Error(`Deposit created but transaction logging failed: ${txErr.message}`);
+        }
+        console.log(`[DB Insert Success - Deposit Transaction] Ref: ${ref}`);
         break;
       }
 
@@ -157,15 +179,20 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (wthErr) throw wthErr;
+        if (wthErr) {
+          console.error('[DB Insert Error - Withdrawals]', wthErr);
+          throw new Error(`Failed to save withdrawal record: ${wthErr.message}`);
+        }
         recordId = wth.id;
+        console.log(`[DB Insert Success - Withdrawal] ID: ${recordId}`);
+
         detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency} (${asset_name || vehicle_name || 'Account Balance'})`;
         emailDetailsHTML = `
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Withdrawal Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Asset/Source:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${asset_name || vehicle_name || 'Account Balance'}</td></tr>
         `;
 
-        await supabaseAdmin.from('transactions').insert({
+        const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: 'withdrawal',
           amount,
@@ -174,6 +201,12 @@ serve(async (req) => {
           reference: ref,
           description: `${request_type === 'cash_out' ? 'Vehicle cash-out' : 'Withdrawal'} request (${ref})`,
         });
+
+        if (txErr) {
+          console.error('[DB Insert Error - Withdrawal Transaction]', txErr);
+          throw new Error(`Withdrawal created but transaction logging failed: ${txErr.message}`);
+        }
+        console.log(`[DB Insert Success - Withdrawal Transaction] Ref: ${ref}`);
         break;
       }
 
@@ -182,7 +215,6 @@ serve(async (req) => {
         if (isValidUUID(vehicle_id)) {
           resolvedVehicleId = vehicle_id;
         } else if (vehicle_id) {
-          // Safe lookup by slug or name without causing UUID syntax errors in Postgres
           const { data: vSlug } = await supabaseAdmin
             .from('vehicles')
             .select('id')
@@ -229,8 +261,12 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (ordErr) throw ordErr;
+        if (ordErr) {
+          console.error('[DB Insert Error - Orders]', ordErr);
+          throw new Error(`Failed to save vehicle order: ${ordErr.message}`);
+        }
         recordId = order.id;
+        console.log(`[DB Insert Success - Order] ID: ${recordId}`);
 
         const paymentOptionLabel = isFullPayment ? 'Pay In Full' : 'Part Payment';
         detailSummary = isFullPayment
@@ -247,7 +283,7 @@ serve(async (req) => {
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${quantity}</td></tr>
         `;
 
-        await supabaseAdmin.from('transactions').insert({
+        const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: 'order',
           amount: transactionAmount,
@@ -258,6 +294,12 @@ serve(async (req) => {
             ? `Vehicle full-payment order request for ${quantity}x ${vehicle_name || 'Tesla Vehicle'}`
             : `Vehicle part-payment order request for ${quantity}x ${vehicle_name || 'Tesla Vehicle'} (Part Payment: $${effectivePartPayment.toLocaleString()})`,
         });
+
+        if (txErr) {
+          console.error('[DB Insert Error - Order Transaction]', txErr);
+          throw new Error(`Order created but transaction logging failed: ${txErr.message}`);
+        }
+        console.log(`[DB Insert Success - Order Transaction] Record: ${recordId}`);
         break;
       }
 
@@ -294,8 +336,13 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (invErr) throw invErr;
+        if (invErr) {
+          console.error('[DB Insert Error - Investments]', invErr);
+          throw new Error(`Failed to save investment record: ${invErr.message}`);
+        }
         recordId = inv.id;
+        console.log(`[DB Insert Success - Investment] ID: ${recordId}`);
+
         detailSummary = `Project: ${project_name || 'Investment Project'} | Amount: $${Number(amount).toLocaleString()} ${currency}`;
         emailDetailsHTML = `
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Investment Project:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${project_name || 'Investment Project'}</td></tr>
@@ -303,7 +350,7 @@ serve(async (req) => {
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Allocation Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
         `;
 
-        await supabaseAdmin.from('transactions').insert({
+        const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: 'investment',
           amount,
@@ -312,6 +359,12 @@ serve(async (req) => {
           reference: recordId,
           description: `Investment request for ${project_name || 'Project'}`,
         });
+
+        if (txErr) {
+          console.error('[DB Insert Error - Investment Transaction]', txErr);
+          throw new Error(`Investment created but transaction logging failed: ${txErr.message}`);
+        }
+        console.log(`[DB Insert Success - Investment Transaction] Record: ${recordId}`);
         break;
       }
 
@@ -336,7 +389,6 @@ serve(async (req) => {
             resolvedPlanId = tierByName.id;
             resolvedTierName = tierByName.name;
           } else {
-            // Fallback: list tiers and safely match in JS
             const { data: tiers } = await supabaseAdmin
               .from('membership_tiers')
               .select('id, name');
@@ -370,8 +422,13 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (subErr) throw subErr;
+        if (subErr) {
+          console.error('[DB Insert Error - User Subscriptions]', subErr);
+          throw new Error(`Failed to save membership subscription record: ${subErr.message}`);
+        }
         recordId = sub.id;
+        console.log(`[DB Insert Success - User Subscription] ID: ${recordId}`);
+
         detailSummary = `Requested Tier/Plan: ${resolvedTierName} | Price/Amount: $${Number(amount).toLocaleString()} ${currency}`;
         emailDetailsHTML = `
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Requested Membership Tier:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedTierName}</td></tr>
@@ -379,7 +436,7 @@ serve(async (req) => {
           <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Tier Price:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
         `;
 
-        await supabaseAdmin.from('transactions').insert({
+        const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: 'plan',
           amount,
@@ -388,6 +445,12 @@ serve(async (req) => {
           reference: recordId,
           description: `Subscription upgrade request for ${resolvedTierName}`,
         });
+
+        if (txErr) {
+          console.error('[DB Insert Error - Plan Transaction]', txErr);
+          throw new Error(`Subscription created but transaction logging failed: ${txErr.message}`);
+        }
+        console.log(`[DB Insert Success - Plan Transaction] Record: ${recordId}`);
         break;
       }
     }
@@ -401,13 +464,13 @@ serve(async (req) => {
     let emailErrorMessage: string | null = null;
 
     if (!brevoApiKey) {
-      console.error('[Brevo Configuration Error] Missing BREVO_API_KEY environment secret.');
+      console.warn('[Brevo Configuration] BREVO_API_KEY environment secret is not set.');
       emailErrorMessage = 'BREVO_API_KEY environment secret is not configured.';
     } else if (!brevoSenderEmail) {
-      console.error('[Brevo Configuration Error] Missing BREVO_SENDER_EMAIL environment secret.');
+      console.warn('[Brevo Configuration] BREVO_SENDER_EMAIL environment secret is not set.');
       emailErrorMessage = 'BREVO_SENDER_EMAIL environment secret is not configured.';
     } else {
-      console.log(`[Brevo Email Dispatch] Sending ${request_type} request notification via Brevo to admin (${ADMIN_EMAIL}) and user (${userEmail}) using sender ${brevoSenderName} <${brevoSenderEmail}>`);
+      console.log(`[Brevo Email Dispatch] Sending ${request_type} request notification to admin (${ADMIN_EMAIL}) and user (${userEmail})`);
 
       const requestTypeLabel = request_type.replace(/_/g, ' ').toUpperCase();
       const requestDate = new Date().toISOString();
@@ -475,15 +538,14 @@ serve(async (req) => {
 
         if (adminRes.ok) {
           adminSuccess = true;
-          const adminJson = await adminRes.json().catch(() => ({}));
-          console.log('[Brevo Admin Email Success]', adminJson);
+          console.log('[Brevo Admin Email Dispatch Success]');
         } else {
           const errBody = await adminRes.text();
-          console.error(`[Brevo Admin Email HTTP Error] Status ${adminRes.status}: ${errBody}`);
+          console.error(`[Brevo Admin Email Error] HTTP ${adminRes.status}: ${errBody}`);
           deliveryErrors.push(`Admin email rejected (HTTP ${adminRes.status}): ${errBody}`);
         }
       } catch (err: any) {
-        console.error('[Brevo Admin Email Network Exception]', err);
+        console.error('[Brevo Admin Email Exception]', err);
         deliveryErrors.push(`Admin email exception: ${err?.message || String(err)}`);
       }
 
@@ -507,15 +569,14 @@ serve(async (req) => {
 
           if (userRes.ok) {
             userSuccess = true;
-            const userJson = await userRes.json().catch(() => ({}));
-            console.log('[Brevo User Email Success]', userJson);
+            console.log('[Brevo User Email Dispatch Success]');
           } else {
             const errBody = await userRes.text();
-            console.error(`[Brevo User Email HTTP Error] Status ${userRes.status}: ${errBody}`);
+            console.error(`[Brevo User Email Error] HTTP ${userRes.status}: ${errBody}`);
             deliveryErrors.push(`User email rejected (HTTP ${userRes.status}): ${errBody}`);
           }
         } catch (err: any) {
-          console.error('[Brevo User Email Network Exception]', err);
+          console.error('[Brevo User Email Exception]', err);
           deliveryErrors.push(`User email exception: ${err?.message || String(err)}`);
         }
       }
