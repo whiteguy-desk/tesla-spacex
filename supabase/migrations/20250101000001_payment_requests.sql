@@ -1,5 +1,5 @@
--- Supabase Migration: Payment Requests Overhaul
--- Standardizing domain tables for requests, default statuses, and RLS security.
+-- Supabase Migration: Payment Requests Overhaul & Transactions Schema Standardisation
+-- Ensures compatible UUID / TEXT primary and foreign keys, domain tables for requests, default statuses, and RLS security.
 
 -- Enable UUID extension if not enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -40,6 +40,7 @@ ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS asset_name TEXT;
 ALTER TABLE public.withdrawals ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- 3. ORDERS TABLE
+-- Note: vehicle_id is TEXT matching vehicles.id (e.g. 'model-3', 'cybertruck')
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- 4. INVESTMENTS TABLE
+-- Note: project_id is TEXT matching projects.id (e.g. 'doge-reserve-fund', 'xai-colossus-ii-gpu-cluster')
 CREATE TABLE IF NOT EXISTS public.investments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -76,6 +78,7 @@ CREATE TABLE IF NOT EXISTS public.investments (
 ALTER TABLE public.investments ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- 5. USER SUBSCRIPTIONS TABLE
+-- Note: plan_id is TEXT matching membership_tiers.id (e.g. 'silver', 'gold', 'platinum')
 CREATE TABLE IF NOT EXISTS public.user_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -88,6 +91,24 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
 
 ALTER TABLE public.user_subscriptions ADD COLUMN IF NOT EXISTS notes TEXT;
 
+-- 6. TRANSACTIONS TABLE
+CREATE TABLE IF NOT EXISTS public.transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  amount NUMERIC(15, 2) NOT NULL,
+  currency TEXT DEFAULT 'USD',
+  status TEXT DEFAULT 'pending',
+  reference TEXT,
+  description TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS reference TEXT;
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
 -- ==========================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ==========================================
@@ -97,6 +118,7 @@ ALTER TABLE public.withdrawals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.investments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies to ensure clean state
 DROP POLICY IF EXISTS "Users can read own deposits" ON public.deposits;
@@ -113,6 +135,9 @@ DROP POLICY IF EXISTS "Users can insert own investments" ON public.investments;
 
 DROP POLICY IF EXISTS "Users can read own subscriptions" ON public.user_subscriptions;
 DROP POLICY IF EXISTS "Users can insert own subscriptions" ON public.user_subscriptions;
+
+DROP POLICY IF EXISTS "Users can read own transactions" ON public.transactions;
+DROP POLICY IF EXISTS "Users can insert own transactions" ON public.transactions;
 
 -- Deposits
 CREATE POLICY "Users can read own deposits" ON public.deposits FOR SELECT USING (auth.uid() = user_id);
@@ -133,3 +158,7 @@ CREATE POLICY "Users can insert own investments" ON public.investments FOR INSER
 -- User Subscriptions
 CREATE POLICY "Users can read own subscriptions" ON public.user_subscriptions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own subscriptions" ON public.user_subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Transactions
+CREATE POLICY "Users can read own transactions" ON public.transactions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own transactions" ON public.transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
