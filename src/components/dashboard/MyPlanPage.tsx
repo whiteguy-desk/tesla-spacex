@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Award, CheckCircle, Loader2 } from 'lucide-react';
+import { ShieldCheck, Award, CheckCircle2, Loader2, Send } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchMembershipTiers, fetchAiPlans, type MembershipTier, type AiPlan } from '../../lib/plans';
-import { fetchUserDashboardData, subscribeToPlan } from '../../lib/dashboard';
+import { fetchUserDashboardData } from '../../lib/dashboard';
+import { submitMembershipUpgradeRequest, submitPlanUpgradeRequest } from '../../lib/paymentRequests';
 
 export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribeTab = false }) => {
-  const { user, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [aiPlans, setAiPlans] = useState<AiPlan[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
@@ -35,21 +36,43 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
     };
   }, [user?.id]);
 
-  const handleSubscribe = async (tier: MembershipTier) => {
+  const handleSubscribeTier = async (tier: MembershipTier) => {
     if (!user) return;
     setSubscribingId(tier.id);
     setActionMessage(null);
 
-    const { success, error } = await subscribeToPlan(user.id, tier.id, tier.name, tier.price);
+    const result = await submitMembershipUpgradeRequest({
+      tierId: tier.id,
+      tierName: tier.name,
+      price: tier.price,
+    });
 
     setSubscribingId(null);
 
-    if (error) {
-      setActionMessage(`Error subscribing: ${error.message}`);
-    } else if (success) {
-      setActivePlanId(tier.id);
-      setActionMessage(`Successfully updated active plan to ${tier.name}!`);
-      await refreshProfile();
+    if (!result.success) {
+      setActionMessage(`Error submitting upgrade request: ${result.message}`);
+    } else {
+      setActionMessage(`Upgrade request for ${tier.name} Tier submitted successfully! Status: Pending Review. Settlement details will be sent to ${user.email}.`);
+    }
+  };
+
+  const handleSubscribeAiPlan = async (plan: AiPlan) => {
+    if (!user) return;
+    setSubscribingId(plan.id);
+    setActionMessage(null);
+
+    const result = await submitPlanUpgradeRequest({
+      planId: plan.id,
+      planName: plan.name,
+      price: plan.min_amount,
+    });
+
+    setSubscribingId(null);
+
+    if (!result.success) {
+      setActionMessage(`Error submitting strategy request: ${result.message}`);
+    } else {
+      setActionMessage(`Strategy request for ${plan.name} submitted successfully! Status: Pending Review. Account allocation guidance will be sent to ${user.email}.`);
     }
   };
 
@@ -73,15 +96,15 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
         </h1>
         <p className="text-xs text-white/50 font-light mt-1">
           {isSubscribeTab
-            ? 'Select and activate a membership tier to unlock priority allocation and VIP support.'
-            : 'Your active membership status, benefit features, and tier upgrades.'}
+            ? 'Select and request a membership tier to unlock priority allocation and VIP support.'
+            : 'Your active membership status, benefit features, and tier upgrade requests.'}
         </p>
       </div>
 
       {actionMessage && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-2">
-          <CheckCircle className="w-4 h-4" />
-          {actionMessage}
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{actionMessage}</span>
         </div>
       )}
 
@@ -92,7 +115,7 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-red-400">Current Membership Status</span>
               <h2 className="text-2xl font-black text-white uppercase tracking-tight mt-0.5">
-                {currentTier ? `${currentTier.name} Member` : 'No Membership Plan Activated'}
+                {currentTier ? `${currentTier.name} Member` : 'Standard Account (Pending Upgrade Request)'}
               </h2>
             </div>
             {currentTier && (
@@ -108,7 +131,7 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 {currentTier.benefits.map((benefit, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs text-white/80 bg-white/5 p-2.5 rounded-lg border border-white/5">
-                    <CheckCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-red-400 shrink-0" />
                     <span>{benefit}</span>
                   </div>
                 ))}
@@ -116,7 +139,7 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
             </div>
           ) : (
             <p className="text-xs text-white/50 font-light">
-              You do not have an active membership tier. Select a tier below to activate your privileges.
+              Select a tier below to request an upgrade. Upgrade instructions will be emailed directly to <strong>{user?.email}</strong>.
             </p>
           )}
         </div>
@@ -157,7 +180,7 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
                     <span className="block text-[10px] font-bold uppercase tracking-wider text-white/30">Benefits</span>
                     {tier.benefits.map((b, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-xs text-white/70">
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                         <span>{b}</span>
                       </div>
                     ))}
@@ -166,7 +189,7 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
 
                 <button
                   type="button"
-                  onClick={() => handleSubscribe(tier)}
+                  onClick={() => handleSubscribeTier(tier)}
                   disabled={isCurrent || subscribingId === tier.id}
                   className={`w-full py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                     isCurrent
@@ -177,8 +200,8 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
                   {isCurrent
                     ? 'Current Plan'
                     : subscribingId === tier.id
-                    ? 'Activating...'
-                    : `Subscribe — $${tier.price.toLocaleString()}`}
+                    ? 'Submitting...'
+                    : `Request Upgrade — $${tier.price.toLocaleString()}`}
                 </button>
               </div>
             );
@@ -218,12 +241,21 @@ export const MyPlanPage: React.FC<{ isSubscribeTab?: boolean }> = ({ isSubscribe
                 </div>
               </div>
 
-              <a
-                href="/dashboard/deposit"
-                className="block text-center w-full py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors border border-white/10"
+              <button
+                type="button"
+                onClick={() => handleSubscribeAiPlan(plan)}
+                disabled={subscribingId === plan.id}
+                className="w-full py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors border border-white/10 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Deposit &amp; Activate Strategy
-              </a>
+                {subscribingId === plan.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5 text-indigo-400" />
+                    Request Strategy Activation
+                  </>
+                )}
+              </button>
             </div>
           ))}
         </div>

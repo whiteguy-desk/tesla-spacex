@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUpCircle, CheckCircle2, Loader2, Send } from 'lucide-react';
+import { ArrowUpCircle, CheckCircle2, Loader2, Send, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { createWithdrawalRequest, fetchUserDashboardData } from '../../lib/dashboard';
-import { buildWithdrawalTelegramUrl } from '../../lib/telegram';
+import { fetchUserDashboardData } from '../../lib/dashboard';
+import { submitWithdrawalRequest } from '../../lib/paymentRequests';
 
 export const WithdrawalPage: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [amount, setAmount] = useState<string>('500');
   const [balance, setBalance] = useState<number>(0);
   const [loadingBalance, setLoadingBalance] = useState<boolean>(true);
@@ -46,32 +46,20 @@ export const WithdrawalPage: React.FC = () => {
 
     setIsSubmitting(true);
 
-    const { withdrawal, error } = await createWithdrawalRequest(user.id, numAmount, 'USD');
+    const result = await submitWithdrawalRequest({
+      amount: numAmount,
+      currency: 'USD',
+      assetName: 'Account Available Balance',
+    });
 
     setIsSubmitting(false);
 
-    if (error) {
-      setErrorMessage(`Error recording withdrawal request: ${error.message}`);
+    if (!result.success) {
+      setErrorMessage(result.message || 'Error recording withdrawal request. Please try again.');
       return;
     }
 
-    const refId = withdrawal?.reference_id || `WTH-${Math.floor(100000 + Math.random() * 900000)}`;
-    setSubmittedRef(refId);
-
-    const customerEmail = user.email || '';
-    const customerName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : '';
-
-    const telegramUrl = buildWithdrawalTelegramUrl({
-      referenceId: refId,
-      amount: numAmount,
-      currency: 'USD',
-      customerName,
-      customerEmail,
-    });
-
-    setTimeout(() => {
-      window.location.href = telegramUrl;
-    }, 1500);
+    setSubmittedRef(result.referenceId || result.requestId || `WTH-${Math.floor(100000 + Math.random() * 900000)}`);
   };
 
   return (
@@ -106,15 +94,59 @@ export const WithdrawalPage: React.FC = () => {
       )}
 
       {submittedRef ? (
-        <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-4">
-          <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-          <h2 className="text-xl font-bold text-white">Withdrawal Request Submitted</h2>
-          <p className="text-xs text-white/70 max-w-md mx-auto">
-            Reference ID: <strong className="font-mono text-emerald-300">{submittedRef}</strong>
+        <div className="p-8 sm:p-10 rounded-2xl bg-gradient-to-b from-white/[0.05] to-black border border-white/10 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase tracking-widest font-mono">
+              Status: Pending Review
+            </span>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight">Withdrawal Request Received</h2>
+            <p className="text-xs text-white/70 max-w-md mx-auto leading-relaxed">
+              Your withdrawal request has been submitted successfully and recorded in your account ledger.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 max-w-sm mx-auto text-left space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40 uppercase font-mono text-[10px]">Reference ID:</span>
+              <span className="font-mono font-bold text-emerald-400">{submittedRef}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40 uppercase font-mono text-[10px]">Requested Amount:</span>
+              <span className="font-mono font-bold text-white">${parseFloat(amount).toLocaleString()} USD</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40 uppercase font-mono text-[10px]">Registered Email:</span>
+              <span className="font-mono font-bold text-white/80">{user?.email}</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-white/50 max-w-md mx-auto leading-relaxed">
+            Our finance team will review your request and contact you through your registered email address (<strong>{user?.email}</strong>) to confirm payout destination details.
           </p>
-          <p className="text-xs text-white/50">
-            Redirecting to Telegram settlement support to confirm payout options...
-          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <a
+              href="/dashboard"
+              className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors border border-white/10 flex items-center justify-center gap-2"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setSubmittedRef(null);
+                setAmount('500');
+              }}
+              className="px-6 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+            >
+              Request Another Withdrawal
+            </button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-6">

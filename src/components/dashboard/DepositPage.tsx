@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowDownCircle, CheckCircle2, Loader2, Send } from 'lucide-react';
+import { ArrowDownCircle, CheckCircle2, Loader2, Send, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { createDepositRequest, fetchUserDashboardData } from '../../lib/dashboard';
-import { buildDepositTelegramUrl } from '../../lib/telegram';
+import { fetchUserDashboardData } from '../../lib/dashboard';
+import { submitDepositRequest } from '../../lib/paymentRequests';
 
 export const DepositPage: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [amount, setAmount] = useState<string>('2000');
+  const [paymentMethod, setPaymentMethod] = useState<string>('Bank Wire / Crypto Transfer');
   const [balance, setBalance] = useState<number>(0);
   const [loadingBalance, setLoadingBalance] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submittedRef, setSubmittedRef] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -29,42 +31,31 @@ export const DepositPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     if (!user) return;
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount < 1000) {
-      alert('Minimum deposit amount is $1,000.');
+      setErrorMessage('Minimum deposit amount is $1,000.');
       return;
     }
 
     setIsSubmitting(true);
 
-    const { deposit, error } = await createDepositRequest(user.id, numAmount, 'USD');
+    const result = await submitDepositRequest({
+      amount: numAmount,
+      currency: 'USD',
+      paymentMethod,
+    });
 
     setIsSubmitting(false);
 
-    if (error) {
-      alert(`Error submitting deposit: ${error.message}`);
+    if (!result.success) {
+      setErrorMessage(result.message || 'Error submitting deposit request. Please try again.');
       return;
     }
 
-    const refId = deposit?.reference_id || `DEP-${Math.floor(100000 + Math.random() * 900000)}`;
-    setSubmittedRef(refId);
-
-    const customerEmail = user.email || '';
-    const customerName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : '';
-
-    const telegramUrl = buildDepositTelegramUrl({
-      referenceId: refId,
-      amount: numAmount,
-      currency: 'USD',
-      customerName,
-      customerEmail,
-    });
-
-    setTimeout(() => {
-      window.location.href = telegramUrl;
-    }, 1500);
+    setSubmittedRef(result.referenceId || result.requestId || `DEP-${Math.floor(100000 + Math.random() * 900000)}`);
   };
 
   return (
@@ -75,7 +66,7 @@ export const DepositPage: React.FC = () => {
           Deposit <span className="text-white/40">Funds</span>
         </h1>
         <p className="text-xs text-white/50 font-light mt-1">
-          Initiate a deposit request. Payment details and settlement instructions will be provided via Telegram.
+          Initiate a deposit request. Settlement instructions will be provided through your registered email address.
         </p>
       </div>
 
@@ -92,16 +83,66 @@ export const DepositPage: React.FC = () => {
         </div>
       </div>
 
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-400 leading-relaxed font-light">
+          {errorMessage}
+        </div>
+      )}
+
       {submittedRef ? (
-        <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-4">
-          <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-          <h2 className="text-xl font-bold text-white">Deposit Request Created</h2>
-          <p className="text-xs text-white/70 max-w-md mx-auto">
-            Reference ID: <strong className="font-mono text-emerald-300">{submittedRef}</strong>
+        <div className="p-8 sm:p-10 rounded-2xl bg-gradient-to-b from-white/[0.05] to-black border border-white/10 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase tracking-widest font-mono">
+              Status: Pending Review
+            </span>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight">Request Received</h2>
+            <p className="text-xs text-white/70 max-w-md mx-auto leading-relaxed">
+              Your deposit request has been submitted successfully and recorded in your ledger.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 max-w-sm mx-auto text-left space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40 uppercase font-mono text-[10px]">Reference:</span>
+              <span className="font-mono font-bold text-emerald-400">{submittedRef}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40 uppercase font-mono text-[10px]">Amount:</span>
+              <span className="font-mono font-bold text-white">${parseFloat(amount).toLocaleString()} USD</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-white/40 uppercase font-mono text-[10px]">Destination Email:</span>
+              <span className="font-mono font-bold text-white/80">{user?.email}</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-white/50 max-w-md mx-auto leading-relaxed">
+            Our team will review your request and contact you through your registered email address (<strong>{user?.email}</strong>) with full wire and settlement details.
           </p>
-          <p className="text-xs text-white/50">
-            Redirecting to Telegram settlement support...
-          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <a
+              href="/dashboard"
+              className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors border border-white/10 flex items-center justify-center gap-2"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Back to Dashboard
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                setSubmittedRef(null);
+                setAmount('2000');
+              }}
+              className="px-6 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+            >
+              Submit Another Deposit
+            </button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-6">
@@ -146,8 +187,24 @@ export const DepositPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 text-xs text-white/60 font-light leading-relaxed">
-            Note: Submitting this form creates a pending deposit request and redirects to our Telegram settlement representative. Your balance will update upon receipt confirmation.
+          <div>
+            <label htmlFor="paymentMethod" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-2">
+              Preferred Settlement Method
+            </label>
+            <select
+              id="paymentMethod"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3.5 text-xs text-white outline-none focus:border-red-500 transition-colors cursor-pointer"
+            >
+              <option value="Bank Wire / Crypto Transfer">Bank Wire / Crypto Transfer</option>
+              <option value="USDT / Crypto Settlement">USDT / USDC Crypto Settlement</option>
+              <option value="Institutional Wire Transfer">Institutional Direct Wire Transfer</option>
+            </select>
+          </div>
+
+          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 text-xs text-white/60 font-light leading-relaxed">
+            Note: Submitting this form creates a pending deposit request. Wire instructions and payment verification will be emailed directly to <strong>{user?.email}</strong>.
           </div>
 
           <button
@@ -158,12 +215,12 @@ export const DepositPage: React.FC = () => {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Creating Request...
+                Submitting Request...
               </>
             ) : (
               <>
                 <Send className="w-4 h-4" />
-                Submit Deposit &amp; Open Telegram
+                Submit Deposit Request
               </>
             )}
           </button>

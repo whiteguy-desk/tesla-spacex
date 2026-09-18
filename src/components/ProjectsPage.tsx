@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, Loader2, AlertCircle, FolderOpen } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { ChevronRight, Loader2, AlertCircle, FolderOpen, CheckCircle, X, Send } from 'lucide-react';
 import { fetchProjects as loadProjects, type Project } from '../lib/projects';
+import { AuthContext } from '../context/AuthContext';
+import { submitInvestmentRequest } from '../lib/paymentRequests';
 
 export interface ProjectItem {
   id: string;
@@ -106,10 +108,19 @@ const formatTargetAmount = (amount: number | null): string | null => {
 };
 
 export const ProjectsPage: React.FC = () => {
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user || null;
+
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
+
+  // Investment Request Modal state
+  const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
+  const [investAmount, setInvestAmount] = useState<string>('2500');
+  const [submittingInvest, setSubmittingInvest] = useState<boolean>(false);
+  const [investSuccessMsg, setInvestSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -164,12 +175,137 @@ export const ProjectsPage: React.FC = () => {
     setFailedImages((prev) => ({ ...prev, [id]: true }));
   };
 
+  const handleOpenInvestModal = (project: ProjectItem, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      window.location.href = '/invest/login';
+      return;
+    }
+    setSelectedProject(project);
+    setInvestAmount('2500');
+    setInvestSuccessMsg(null);
+  };
+
+  const handleConfirmInvestRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !user) return;
+
+    setSubmittingInvest(true);
+    const numAmount = parseFloat(investAmount) || 2500;
+
+    const result = await submitInvestmentRequest({
+      projectId: selectedProject.id,
+      projectName: selectedProject.title,
+      amount: numAmount,
+      currency: 'USD',
+    });
+
+    setSubmittingInvest(false);
+
+    if (!result.success) {
+      alert(result.message || 'Error submitting investment request.');
+      return;
+    }
+
+    setInvestSuccessMsg(
+      `Investment request submitted (#${(result.referenceId || result.requestId || '').slice(0, 8)}). Status: Pending Review. Settlement details will be sent to ${user.email}.`
+    );
+
+    setTimeout(() => {
+      setSelectedProject(null);
+      setInvestSuccessMsg(null);
+    }, 4000);
+  };
+
   const openProjectsCount = projects.filter(
     (p) => p.status.toLowerCase() === 'open' || p.status.toLowerCase() === 'active'
   ).length;
 
   return (
     <main className="min-h-screen bg-black text-white">
+      {/* Investment Modal */}
+      {selectedProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-950 border border-white/15 rounded-2xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => setSelectedProject(null)}
+              className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-red-500">
+                Investment Opportunity Request
+              </span>
+              <h3 className="text-xl font-black text-white uppercase mt-1">{selectedProject.title}</h3>
+              <p className="text-xs text-white/50 font-light mt-1">
+                Demo Investment Opportunity — Submit a request for allocation details and settlement parameters.
+              </p>
+            </div>
+
+            {investSuccessMsg ? (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 space-y-2">
+                <div className="flex items-center gap-2 font-bold uppercase">
+                  <CheckCircle className="w-4 h-4" />
+                  Request Received
+                </div>
+                <p className="text-emerald-300/80 font-light leading-relaxed">{investSuccessMsg}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmInvestRequest} className="space-y-4">
+                <div>
+                  <label htmlFor="investAmountInput" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1">
+                    Requested Investment Amount (USD)
+                  </label>
+                  <input
+                    id="investAmountInput"
+                    type="number"
+                    min="1000"
+                    step="500"
+                    required
+                    value={investAmount}
+                    onChange={(e) => setInvestAmount(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-red-500"
+                  />
+                  <p className="text-[10px] text-white/40 mt-1">Minimum entry: $1,000</p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/10 text-[11px] text-white/50 leading-relaxed">
+                  Notice: Submitting an investment request creates a persistent request record for review. Allocation details will be sent directly to <strong>{user?.email}</strong>.
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProject(null)}
+                    className="flex-1 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingInvest}
+                    className="flex-1 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingInvest ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        Submit Request
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <div className="relative overflow-hidden pt-32 pb-20 px-6 sm:px-10 lg:px-16">
         <div className="absolute inset-0 pointer-events-none">
@@ -265,7 +401,7 @@ export const ProjectsPage: React.FC = () => {
                   key={project.id}
                   className="group relative rounded-2xl overflow-hidden border border-white/[0.07] hover:border-white/[0.15] transition-all duration-500 bg-[#0a0a0a]"
                 >
-                  <a className="block" href={`/projects/${project.slug}`}>
+                  <div className="block">
                     <div className="relative h-72 sm:h-80 overflow-hidden bg-zinc-900">
                       {!isImageFailed ? (
                         <img
@@ -341,7 +477,8 @@ export const ProjectsPage: React.FC = () => {
                         <span className="text-[11px] text-white/35">View investment details</span>
                         <button
                           type="button"
-                          className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition-all duration-300 group-hover:gap-2.5"
+                          onClick={(e) => handleOpenInvestModal(project, e)}
+                          className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition-all duration-300 group-hover:gap-2.5 cursor-pointer"
                           style={{ color: project.accentColor }}
                         >
                           Invest Now
@@ -349,7 +486,7 @@ export const ProjectsPage: React.FC = () => {
                         </button>
                       </div>
                     </div>
-                  </a>
+                  </div>
                 </div>
               );
             })}
