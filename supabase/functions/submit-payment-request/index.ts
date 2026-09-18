@@ -17,7 +17,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to validate UUID format
+// Helper to validate UUID format strictly
 function isValidUUID(uuidStr: unknown): boolean {
   if (typeof uuidStr !== 'string') return false;
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -61,6 +61,7 @@ serve(async (req) => {
     const body = await req.json();
     const {
       request_type,
+      payment_option = 'part', // 'full' or 'part'
       amount = 0,
       currency = 'USD',
       payment_method,
@@ -101,6 +102,7 @@ serve(async (req) => {
     const ref = reference_id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
     let recordId = ref;
     let detailSummary = '';
+    let emailDetailsHTML = '';
 
     // Step 1: Database persistence comes first
     switch (request_type) {
@@ -121,7 +123,11 @@ serve(async (req) => {
 
         if (depErr) throw depErr;
         recordId = deposit.id;
-        detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency}`;
+        detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency} | Payment Method: ${payment_method || 'Standard Deposit'}`;
+        emailDetailsHTML = `
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Deposit Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Payment Method:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${payment_method || 'Standard Deposit'}</td></tr>
+        `;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -154,6 +160,10 @@ serve(async (req) => {
         if (wthErr) throw wthErr;
         recordId = wth.id;
         detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency} (${asset_name || vehicle_name || 'Account Balance'})`;
+        emailDetailsHTML = `
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Withdrawal Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Asset/Source:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${asset_name || vehicle_name || 'Account Balance'}</td></tr>
+        `;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -172,21 +182,37 @@ serve(async (req) => {
         if (isValidUUID(vehicle_id)) {
           resolvedVehicleId = vehicle_id;
         } else if (vehicle_id) {
-          const { data: vMatch } = await supabaseAdmin
+          // Safe lookup by slug or name without causing UUID syntax errors in Postgres
+          const { data: vSlug } = await supabaseAdmin
             .from('vehicles')
             .select('id')
-            .or(`id.eq.${vehicle_id},slug.eq.${vehicle_id}`);
-          if (vMatch && vMatch.length > 0) {
-            resolvedVehicleId = vMatch[0].id;
+            .eq('slug', vehicle_id)
+            .maybeSingle();
+
+          if (vSlug) {
+            resolvedVehicleId = vSlug.id;
+          } else {
+            const { data: vName } = await supabaseAdmin
+              .from('vehicles')
+              .select('id')
+              .ilike('name', vehicle_id)
+              .maybeSingle();
+            if (vName) resolvedVehicleId = vName.id;
           }
         }
+
+        const isFullPayment = payment_option === 'full' || (amount > 0 && amount === full_price);
+        const effectiveFullPrice = full_price || amount || 0;
+        const effectivePartPayment = isFullPayment ? 0 : (part_payment_amount || 5000);
+        const remainingBalance = isFullPayment ? 0 : Math.max(0, effectiveFullPrice - effectivePartPayment);
+        const transactionAmount = isFullPayment ? effectiveFullPrice : (effectivePartPayment || 5000);
 
         const orderPayload: Record<string, any> = {
           user_id: user.id,
           vehicle_name: vehicle_name || 'Tesla Vehicle',
           quantity,
-          full_price: full_price || amount,
-          part_payment_amount: part_payment_amount || 5000,
+          full_price: effectiveFullPrice,
+          part_payment_amount: effectivePartPayment,
           status: 'pending',
           contact_status: 'awaiting_contact',
           customer_name: userFullName,
@@ -205,16 +231,32 @@ serve(async (req) => {
 
         if (ordErr) throw ordErr;
         recordId = order.id;
-        detailSummary = `Vehicle: ${vehicle_name || 'Tesla Vehicle'} (Part Payment: $${Number(part_payment_amount || 5000).toLocaleString()})`;
+
+        const paymentOptionLabel = isFullPayment ? 'Pay In Full' : 'Part Payment';
+        detailSummary = isFullPayment
+          ? `Vehicle: ${vehicle_name || 'Tesla Vehicle'} | Option: Pay In Full | Vehicle Price: $${Number(effectiveFullPrice).toLocaleString()}`
+          : `Vehicle: ${vehicle_name || 'Tesla Vehicle'} | Option: Part Payment ($${Number(effectivePartPayment).toLocaleString()}) | Full Price: $${Number(effectiveFullPrice).toLocaleString()} | Balance: $${Number(remainingBalance).toLocaleString()}`;
+
+        emailDetailsHTML = `
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Vehicle Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${vehicle_name || 'Tesla Vehicle'}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Vehicle ID / Ref:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedVehicleId || vehicle_id || 'N/A'}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Payment Option:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee; color: #e82127; font-weight: bold;">${paymentOptionLabel}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Full Vehicle Price:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(effectiveFullPrice).toLocaleString()} ${currency}</td></tr>
+          ${!isFullPayment ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Initial Part Payment:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(effectivePartPayment).toLocaleString()} ${currency}</td></tr>` : ''}
+          ${!isFullPayment ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Remaining Balance:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(remainingBalance).toLocaleString()} ${currency}</td></tr>` : ''}
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${quantity}</td></tr>
+        `;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: 'order',
-          amount: part_payment_amount || 5000,
+          amount: transactionAmount,
           currency,
           status: 'pending',
           reference: recordId,
-          description: `Vehicle order for ${quantity}x ${vehicle_name || 'Tesla Vehicle'}`,
+          description: isFullPayment
+            ? `Vehicle full-payment order request for ${quantity}x ${vehicle_name || 'Tesla Vehicle'}`
+            : `Vehicle part-payment order request for ${quantity}x ${vehicle_name || 'Tesla Vehicle'} (Part Payment: $${effectivePartPayment.toLocaleString()})`,
         });
         break;
       }
@@ -224,12 +266,13 @@ serve(async (req) => {
         if (isValidUUID(project_id)) {
           resolvedProjectId = project_id;
         } else if (project_id) {
-          const { data: pMatch } = await supabaseAdmin
+          const { data: pSlug } = await supabaseAdmin
             .from('projects')
             .select('id')
-            .or(`id.eq.${project_id},slug.eq.${project_id}`);
-          if (pMatch && pMatch.length > 0) {
-            resolvedProjectId = pMatch[0].id;
+            .eq('slug', project_id)
+            .maybeSingle();
+          if (pSlug) {
+            resolvedProjectId = pSlug.id;
           }
         }
 
@@ -253,7 +296,12 @@ serve(async (req) => {
 
         if (invErr) throw invErr;
         recordId = inv.id;
-        detailSummary = `Project: ${project_name || 'Investment Project'} - Amount: $${Number(amount).toLocaleString()}`;
+        detailSummary = `Project: ${project_name || 'Investment Project'} | Amount: $${Number(amount).toLocaleString()} ${currency}`;
+        emailDetailsHTML = `
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Investment Project:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${project_name || 'Investment Project'}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Project ID / Ref:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedProjectId || project_id || 'N/A'}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Allocation Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
+        `;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -270,21 +318,39 @@ serve(async (req) => {
       case 'plan_upgrade':
       case 'membership_upgrade': {
         let resolvedPlanId: string | null = null;
+        let resolvedTierName: string = plan_name || 'Membership Tier';
+
         if (isValidUUID(plan_id)) {
           resolvedPlanId = plan_id;
-        } else if (plan_id || plan_name) {
-          const { data: tiers } = await supabaseAdmin
+        }
+
+        if (!resolvedPlanId && (plan_id || plan_name)) {
+          const searchVal = plan_name || plan_id;
+          const { data: tierByName } = await supabaseAdmin
             .from('membership_tiers')
-            .select('id, name');
-          if (tiers && tiers.length > 0) {
-            const match = tiers.find(
-              (t) =>
-                (plan_id && t.id === plan_id) ||
-                (plan_id && t.name.toLowerCase() === plan_id.toLowerCase()) ||
-                (plan_name && t.name.toLowerCase() === plan_name.toLowerCase())
-            );
-            if (match) {
-              resolvedPlanId = match.id;
+            .select('id, name')
+            .ilike('name', `%${searchVal}%`)
+            .maybeSingle();
+
+          if (tierByName) {
+            resolvedPlanId = tierByName.id;
+            resolvedTierName = tierByName.name;
+          } else {
+            // Fallback: list tiers and safely match in JS
+            const { data: tiers } = await supabaseAdmin
+              .from('membership_tiers')
+              .select('id, name');
+            if (tiers && tiers.length > 0) {
+              const match = tiers.find(
+                (t) =>
+                  (plan_id && t.id === plan_id) ||
+                  (plan_id && t.name.toLowerCase() === plan_id.toLowerCase()) ||
+                  (plan_name && t.name.toLowerCase() === plan_name.toLowerCase())
+              );
+              if (match) {
+                resolvedPlanId = match.id;
+                resolvedTierName = match.name;
+              }
             }
           }
         }
@@ -292,7 +358,7 @@ serve(async (req) => {
         const subPayload: Record<string, any> = {
           user_id: user.id,
           status: 'pending',
-          notes: notes || `Request to upgrade to ${plan_name || 'Membership Tier'}`,
+          notes: notes || `Request to upgrade to ${resolvedTierName}`,
         };
         if (resolvedPlanId) {
           subPayload.plan_id = resolvedPlanId;
@@ -306,7 +372,12 @@ serve(async (req) => {
 
         if (subErr) throw subErr;
         recordId = sub.id;
-        detailSummary = `Selected Tier/Plan: ${plan_name || plan_id || 'Membership'} ($${Number(amount).toLocaleString()})`;
+        detailSummary = `Requested Tier/Plan: ${resolvedTierName} | Price/Amount: $${Number(amount).toLocaleString()} ${currency}`;
+        emailDetailsHTML = `
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Requested Membership Tier:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedTierName}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Tier UUID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedPlanId || 'Not specified'}</td></tr>
+          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Tier Price:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
+        `;
 
         await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
@@ -315,7 +386,7 @@ serve(async (req) => {
           currency,
           status: 'pending',
           reference: recordId,
-          description: `Subscription upgrade request for ${plan_name || 'Tier'}`,
+          description: `Subscription upgrade request for ${resolvedTierName}`,
         });
         break;
       }
@@ -327,56 +398,66 @@ serve(async (req) => {
     const brevoSenderName = Deno.env.get('BREVO_SENDER_NAME') || 'Tesla & Spacex';
 
     let emailSent = false;
-    let emailErrorMessage = null;
+    let emailErrorMessage: string | null = null;
 
-    if (brevoApiKey && brevoSenderEmail) {
+    if (!brevoApiKey) {
+      console.error('[Brevo Configuration Error] Missing BREVO_API_KEY environment secret.');
+      emailErrorMessage = 'BREVO_API_KEY environment secret is not configured.';
+    } else if (!brevoSenderEmail) {
+      console.error('[Brevo Configuration Error] Missing BREVO_SENDER_EMAIL environment secret.');
+      emailErrorMessage = 'BREVO_SENDER_EMAIL environment secret is not configured.';
+    } else {
+      console.log(`[Brevo Email Dispatch] Sending ${request_type} request notification via Brevo to admin (${ADMIN_EMAIL}) and user (${userEmail}) using sender ${brevoSenderName} <${brevoSenderEmail}>`);
+
+      const requestTypeLabel = request_type.replace(/_/g, ' ').toUpperCase();
+      const requestDate = new Date().toISOString();
+
+      // 1. Admin Email Content
+      const adminEmailContent = `
+        <div style="font-family: Arial, sans-serif; color: #111; max-width: 600px; margin: 0 auto; line-height: 1.5;">
+          <h2 style="color: #e82127; border-bottom: 2px solid #e82127; padding-bottom: 6px;">New ${requestTypeLabel} Request — Tesla & Spacex</h2>
+          <p>A new payment/service request has been submitted by an authenticated user and stored in the database under <strong>PENDING REVIEW</strong> status.</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Request Type:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${request_type}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Record ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${recordId}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Reference ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${ref}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Customer Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${userFullName}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Customer Registered Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${userEmail}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Customer User ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${user.id}</td></tr>
+            ${emailDetailsHTML}
+            ${notes ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Customer Notes:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${notes}</td></tr>` : ''}
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Timestamp:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${requestDate}</td></tr>
+            <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Status:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee; color: #d97706; font-weight: bold;">pending</td></tr>
+          </table>
+        </div>
+      `;
+
+      // 2. User Confirmation Email Content
+      const userEmailContent = `
+        <div style="font-family: Arial, sans-serif; color: #111; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+          <h2 style="color: #111; border-bottom: 2px solid #e82127; padding-bottom: 8px;">Tesla & Spacex — Request Confirmation</h2>
+          <p>Dear ${userFullName},</p>
+          <p>Your request for <strong>${requestTypeLabel}</strong> has been received and registered under status <strong>PENDING REVIEW</strong>.</p>
+
+          <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 4px solid #e82127; margin: 20px 0;">
+            <p style="margin: 0 0 8px 0;"><strong>Reference ID:</strong> ${ref}</p>
+            <p style="margin: 0 0 8px 0;"><strong>Request ID:</strong> ${recordId}</p>
+            <p style="margin: 0;"><strong>Summary:</strong> ${detailSummary}</p>
+          </div>
+
+          <p><strong>Next Steps:</strong> Our team will review your request and reach out directly to your registered email address (<strong>${userEmail}</strong>) with instructions and details.</p>
+          <p style="font-size: 13px; color: #666;">Note: Submitting a request registers your interest in our system for review. No automated charge or completion is implied at this step.</p>
+
+          <p style="margin-top: 24px;">Sincerely,<br/><strong>Tesla & Spacex Platform Team</strong></p>
+        </div>
+      `;
+
+      let adminSuccess = false;
+      let userSuccess = false;
+      const deliveryErrors: string[] = [];
+
+      // Send Admin Email
       try {
-        const requestTypeLabel = request_type.replace(/_/g, ' ').toUpperCase();
-        const requestDate = new Date().toISOString();
-
-        // 1. Admin Email Content
-        const adminEmailContent = `
-          <div style="font-family: Arial, sans-serif; color: #111; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #e82127;">New ${requestTypeLabel} Request — Tesla & Spacex</h2>
-            <p>A new payment/service request has been submitted by an authenticated user and stored in database.</p>
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Request Type:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${request_type}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Record ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${recordId}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Reference ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${ref}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>User Full Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${userFullName}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>User Registered Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${userEmail}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>User ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${user.id}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Amount / Currency:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Details:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${detailSummary}</td></tr>
-              ${payment_method ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Payment Method:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${payment_method}</td></tr>` : ''}
-              ${notes ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Notes / Reason:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${notes}</td></tr>` : ''}
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Request Timestamp:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${requestDate}</td></tr>
-              <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Status:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee; color: #d97706; font-weight: bold;">pending</td></tr>
-            </table>
-          </div>
-        `;
-
-        // 2. User Confirmation Email Content
-        const userEmailContent = `
-          <div style="font-family: Arial, sans-serif; color: #111; max-width: 600px; margin: 0 auto; line-height: 1.6;">
-            <h2 style="color: #111; border-bottom: 2px solid #e82127; padding-bottom: 8px;">Tesla & Spacex — Request Confirmation</h2>
-            <p>Dear ${userFullName},</p>
-            <p>Your request for <strong>${requestTypeLabel}</strong> has been received and registered under status <strong>PENDING REVIEW</strong>.</p>
-
-            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 4px solid #e82127; margin: 20px 0;">
-              <p style="margin: 0 0 8px 0;"><strong>Reference ID:</strong> ${ref}</p>
-              <p style="margin: 0 0 8px 0;"><strong>Request ID:</strong> ${recordId}</p>
-              <p style="margin: 0;"><strong>Summary:</strong> ${detailSummary}</p>
-            </div>
-
-            <p><strong>Next Steps:</strong> Our team will review your request and reach out directly to your registered email address (<strong>${userEmail}</strong>) with instructions and details.</p>
-            <p style="font-size: 13px; color: #666;">Note: Submitting a request registers your interest in our system for review. No automated charge or completion is implied at this step.</p>
-
-            <p style="margin-top: 24px;">Sincerely,<br/><strong>Tesla & Spacex Platform Team</strong></p>
-          </div>
-        `;
-
-        // Send Admin Notification via Brevo API
         const adminRes = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
           headers: {
@@ -392,37 +473,57 @@ serve(async (req) => {
           }),
         });
 
-        // Send User Confirmation via Brevo API
-        const userRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: {
-            'api-key': brevoApiKey,
-            'Content-Type': 'application/json',
-            'accept': 'application/json',
-          },
-          body: JSON.stringify({
-            sender: { name: brevoSenderName, email: brevoSenderEmail },
-            to: [{ email: userEmail, name: userFullName }],
-            subject: `Your Tesla & Spacex Request Has Been Received (#${ref.slice(0, 10)})`,
-            htmlContent: userEmailContent,
-          }),
-        });
-
-        if (adminRes.ok && userRes.ok) {
-          emailSent = true;
+        if (adminRes.ok) {
+          adminSuccess = true;
+          const adminJson = await adminRes.json().catch(() => ({}));
+          console.log('[Brevo Admin Email Success]', adminJson);
         } else {
-          const adminErrText = adminRes.ok ? '' : await adminRes.text();
-          const userErrText = userRes.ok ? '' : await userRes.text();
-          emailErrorMessage = `Brevo API response warning: ${adminErrText || userErrText}`;
-          console.warn('Brevo email delivery warning:', emailErrorMessage);
+          const errBody = await adminRes.text();
+          console.error(`[Brevo Admin Email HTTP Error] Status ${adminRes.status}: ${errBody}`);
+          deliveryErrors.push(`Admin email rejected (HTTP ${adminRes.status}): ${errBody}`);
         }
       } catch (err: any) {
-        console.error('Error delivering email via Brevo:', err);
-        emailErrorMessage = err?.message || 'Brevo email sending failed';
+        console.error('[Brevo Admin Email Network Exception]', err);
+        deliveryErrors.push(`Admin email exception: ${err?.message || String(err)}`);
       }
-    } else {
-      console.warn('BREVO_API_KEY or BREVO_SENDER_EMAIL environment secret is not configured.');
-      emailErrorMessage = 'BREVO_API_KEY or BREVO_SENDER_EMAIL secret missing';
+
+      // Send User Confirmation Email
+      if (userEmail) {
+        try {
+          const userRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'api-key': brevoApiKey,
+              'Content-Type': 'application/json',
+              'accept': 'application/json',
+            },
+            body: JSON.stringify({
+              sender: { name: brevoSenderName, email: brevoSenderEmail },
+              to: [{ email: userEmail, name: userFullName }],
+              subject: `Your Tesla & Spacex Request Has Been Received (#${ref.slice(0, 10)})`,
+              htmlContent: userEmailContent,
+            }),
+          });
+
+          if (userRes.ok) {
+            userSuccess = true;
+            const userJson = await userRes.json().catch(() => ({}));
+            console.log('[Brevo User Email Success]', userJson);
+          } else {
+            const errBody = await userRes.text();
+            console.error(`[Brevo User Email HTTP Error] Status ${userRes.status}: ${errBody}`);
+            deliveryErrors.push(`User email rejected (HTTP ${userRes.status}): ${errBody}`);
+          }
+        } catch (err: any) {
+          console.error('[Brevo User Email Network Exception]', err);
+          deliveryErrors.push(`User email exception: ${err?.message || String(err)}`);
+        }
+      }
+
+      emailSent = adminSuccess;
+      if (deliveryErrors.length > 0) {
+        emailErrorMessage = deliveryErrors.join(' | ');
+      }
     }
 
     return new Response(
@@ -440,11 +541,11 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: any) {
-    console.error('Unhandled request error:', err);
+    console.error('[Edge Function Unhandled Error]', err);
     return new Response(
       JSON.stringify({
         error: 'Unable to submit your request right now. Please try again later.',
-        details: err?.message,
+        details: err?.message || String(err),
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

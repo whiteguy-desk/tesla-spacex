@@ -51,6 +51,7 @@ export interface MembershipUpgradeParams {
 export interface VehiclePurchaseParams {
   vehicleId: string;
   vehicleName: string;
+  paymentOption?: 'full' | 'part';
   fullPrice: number;
   partPaymentAmount: number;
   quantity?: number;
@@ -188,13 +189,17 @@ export async function submitMembershipUpgradeRequest(params: MembershipUpgradePa
 }
 
 export async function submitVehiclePurchaseRequest(params: VehiclePurchaseParams): Promise<PaymentRequestResult> {
+  const isFull = params.paymentOption === 'full';
+  const amount = isFull ? params.fullPrice : params.partPaymentAmount;
+
   return sendPaymentRequest('vehicle_purchase', {
     vehicle_id: params.vehicleId,
     vehicle_name: params.vehicleName,
+    payment_option: params.paymentOption || 'part',
     full_price: params.fullPrice,
     part_payment_amount: params.partPaymentAmount,
     quantity: params.quantity || 1,
-    amount: params.partPaymentAmount,
+    amount,
     notes: params.notes,
   });
 }
