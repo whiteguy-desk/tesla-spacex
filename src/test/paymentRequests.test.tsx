@@ -374,7 +374,7 @@ describe('Centralized Payment Request System', () => {
     expect(ctx?.amount).toBe(2000);
   });
 
-  it('renders General Payment Page with summary, payment instructions, and handles confirmation', async () => {
+  it('renders General Payment Page with summary, payment instructions, and email action for Cryptocurrency', async () => {
     savePaymentRequestContext({
       request_type: 'vehicle_purchase',
       reference_id: 'ORD-TEST123',
@@ -400,30 +400,12 @@ describe('Centralized Payment Request System', () => {
     expect(screen.getByText(/registered@tesla.com/i)).toBeTruthy();
     expect(screen.getByText(/Tesla & SpaceX Capital Settlement/i)).toBeTruthy();
 
-    const confirmBtn = screen.getByRole('button', { name: /Confirm & Submit Request/i });
-    expect(confirmBtn).toBeTruthy();
-
-    await act(async () => {
-      fireEvent.click(confirmBtn);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Request Recorded & Submitted/i)).toBeTruthy();
-    });
-
-    expect(supabase.functions.invoke).toHaveBeenCalledWith(
-      'submit-payment-request',
-      expect.objectContaining({
-        body: expect.objectContaining({
-          request_type: 'vehicle_purchase',
-          vehicle_id: 'cybertruck',
-          amount: 5000,
-        }),
-      })
-    );
+    const emailLink = screen.getByRole('link', { name: /Open Email Client/i });
+    expect(emailLink.getAttribute('href')).toContain('mailto:elonmusk258080@gmail.com');
+    expect(supabase.functions.invoke).not.toHaveBeenCalled();
   });
 
-  it('prevents duplicate submissions on Payment Page refresh when is_submitted is true', async () => {
+  it('renders Cryptocurrency mailto link cleanly on Payment Page even if is_submitted is true', async () => {
     savePaymentRequestContext({
       request_type: 'deposit',
       reference_id: 'DEP-REF999',
@@ -438,9 +420,9 @@ describe('Centralized Payment Request System', () => {
 
     render(<PaymentPage />);
 
-    expect(screen.getByText(/Request Recorded & Submitted/i)).toBeTruthy();
     expect(screen.getAllByText('DEP-REF999').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: /Confirm & Submit Request/i })).toBeNull();
+    const emailLink = screen.getByRole('link', { name: /Open Email Client/i });
+    expect(emailLink.getAttribute('href')).toContain('mailto:elonmusk258080@gmail.com');
     expect(supabase.functions.invoke).not.toHaveBeenCalled();
   });
 });
