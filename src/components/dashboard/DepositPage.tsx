@@ -8,7 +8,7 @@ import { navigate } from '../../lib/navigation';
 export const DepositPage: React.FC = () => {
   const { user, profile } = useAuth();
   const [amount, setAmount] = useState<string>('2000');
-  const [paymentMethod, setPaymentMethod] = useState<string>('Bank Wire / Crypto Transfer');
+  const [paymentMethod, setPaymentMethod] = useState<string>('Crypto');
   const [balance, setBalance] = useState<number>(0);
   const [loadingBalance, setLoadingBalance] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -139,9 +139,10 @@ export const DepositPage: React.FC = () => {
             onChange={(e) => setPaymentMethod(e.target.value)}
             className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-3.5 text-xs text-white outline-none focus:border-red-500 transition-colors cursor-pointer"
           >
-            <option value="Bank Wire / Crypto Transfer">Bank Wire / Crypto Transfer</option>
-            <option value="USDT / Crypto Settlement">USDT / USDC Crypto Settlement</option>
-            <option value="Institutional Wire Transfer">Institutional Direct Wire Transfer</option>
+            <option value="Crypto">Cryptocurrency Settlement</option>
+            <option value="Gift Card">Gift Card Submission</option>
+            <option value="Telegram">Telegram Direct Support</option>
+            <option value="Email">Email Communication</option>
           </select>
         </div>
 
