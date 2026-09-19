@@ -14,6 +14,7 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const { user, profile } = useAuth();
 
@@ -31,6 +32,10 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
   }, []);
 
   const activeVehicle = vehicles[currentSlideIndex] || vehicles[0];
+
+  const handleImageError = (id: string) => {
+    setFailedImages((prev) => ({ ...prev, [id]: true }));
+  };
 
   const handlePrevSlide = () => {
     setCurrentSlideIndex((prev) => (prev === 0 ? vehicles.length - 1 : prev - 1));
@@ -75,7 +80,7 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[#030304] text-white flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-red-500 animate-spin mb-4" />
         <p className="text-xs uppercase font-mono tracking-widest text-white/50">Loading Vehicle Showroom...</p>
       </div>
@@ -84,12 +89,12 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
 
   if (vehicles.length === 0) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-[#030304] text-white flex flex-col items-center justify-center p-6 text-center">
         <h2 className="text-2xl font-bold uppercase mb-2">No Vehicles Found</h2>
         <p className="text-xs text-white/50 mb-6">Unable to load vehicle telemetry at this time.</p>
         <button
           onClick={() => window.location.reload()}
-          className="px-6 py-2.5 rounded-full bg-red-600 text-white text-xs font-bold uppercase tracking-wider"
+          className="px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
         >
           Retry
         </button>
@@ -97,56 +102,72 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
     );
   }
 
+  const activeVehicleImgFailed = activeVehicle && failedImages[activeVehicle.id];
+
   return (
-    <PageTransition className="min-h-screen bg-black text-white overflow-x-hidden font-sans">
+    <PageTransition className="min-h-screen bg-[#030304] text-white overflow-x-hidden font-sans">
       <main className="w-full">
         {/* HERO CAROUSEL SHOWROOM */}
-        <section className="relative w-full h-[90vh] min-h-[600px] max-h-[900px] overflow-hidden bg-black group">
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-out scale-105"
-            style={{ backgroundImage: `url(${activeVehicle.image_url})` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/30"></div>
-          </div>
+        <section className="relative w-full h-[85vh] min-h-[580px] max-h-[850px] overflow-hidden bg-black group border-b border-white/10">
+          {!activeVehicleImgFailed && activeVehicle?.image_url ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-out scale-105"
+              style={{ backgroundImage: `url(${activeVehicle.image_url})` }}
+            >
+              <img
+                src={activeVehicle.image_url}
+                alt={activeVehicle.name}
+                className="hidden"
+                onError={() => handleImageError(activeVehicle.id)}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#030304] via-[#030304]/50 to-black/40"></div>
+            </div>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-neutral-900 to-black flex items-center justify-center">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(232,33,39,0.15)_0%,transparent_70%)] pointer-events-none"></div>
+              <div className="text-white/20 font-mono text-sm uppercase tracking-widest">Tesla Vehicle Telemetry</div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#030304] via-transparent to-black/40"></div>
+            </div>
+          )}
 
           <div className="relative z-10 max-w-[1800px] mx-auto h-full flex flex-col justify-between p-6 sm:p-12">
             <div className="pt-20">
               <Reveal>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[10px] font-mono font-bold uppercase tracking-widest text-white mb-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-[10px] font-mono font-bold uppercase tracking-widest text-white mb-4">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                   Tesla Vehicle Fleet
                 </div>
               </Reveal>
             </div>
 
-            <div className="max-w-3xl pb-16 sm:pb-24">
+            <div className="max-w-3xl pb-16 sm:pb-20">
               <Reveal>
                 <div className="space-y-4">
                   <span className="text-xs sm:text-sm font-mono text-red-500 uppercase tracking-[0.2em] font-bold block">
                     {activeVehicle.type || 'Electric Platform'}
                   </span>
 
-                  <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tighter text-white uppercase font-sans leading-[0.9]">
+                  <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter text-white uppercase font-sans leading-[0.95]">
                     {activeVehicle.name}
                   </h1>
 
-                  <p className="text-sm sm:text-base text-white/80 max-w-xl font-light leading-relaxed">
+                  <p className="text-xs sm:text-sm text-white/80 max-w-xl font-light leading-relaxed">
                     {activeVehicle.description}
                   </p>
 
                   <div className="pt-2">
-                    <div className="inline-grid grid-cols-3 gap-4 sm:gap-8 p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 font-mono text-xs text-center">
+                    <div className="inline-grid grid-cols-3 gap-3 sm:gap-6 p-4 rounded-2xl bg-black/70 backdrop-blur-xl border border-white/15 font-mono text-xs text-center shadow-2xl">
                       <div>
                         <span className="text-white/40 text-[9px] uppercase tracking-wider block">Vehicle Price</span>
-                        <span className="font-bold text-white text-sm sm:text-base">${activeVehicle.full_price.toLocaleString()}</span>
+                        <span className="font-bold text-white text-xs sm:text-sm">${activeVehicle.full_price.toLocaleString()}</span>
                       </div>
-                      <div className="border-x border-white/15 px-1">
+                      <div className="border-x border-white/15 px-2">
                         <span className="text-emerald-400 text-[9px] uppercase tracking-wider block font-sans font-bold">Part Payment</span>
-                        <span className="font-bold text-emerald-400 text-sm sm:text-base">${(activeVehicle.part_payment_amount || 5000).toLocaleString()}</span>
+                        <span className="font-bold text-emerald-400 text-xs sm:text-sm">${(activeVehicle.part_payment_amount || 5000).toLocaleString()}</span>
                       </div>
                       <div>
-                        <span className="text-white/40 text-[9px] uppercase tracking-wider block">Balance</span>
-                        <span className="font-bold text-white/90 text-sm sm:text-base">${Math.max(0, activeVehicle.full_price - (activeVehicle.part_payment_amount || 5000)).toLocaleString()}</span>
+                        <span className="text-white/40 text-[9px] uppercase tracking-wider block">Remaining Balance</span>
+                        <span className="font-bold text-white/80 text-xs sm:text-sm">${Math.max(0, activeVehicle.full_price - (activeVehicle.part_payment_amount || 5000)).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -154,7 +175,7 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
               </Reveal>
             </div>
 
-            <div className="absolute bottom-10 sm:bottom-14 left-0 right-0 z-10 flex flex-col items-center gap-6 w-full px-6">
+            <div className="absolute bottom-6 sm:bottom-10 left-0 right-0 z-10 flex flex-col items-center gap-4 w-full px-6">
               <div className="w-full max-w-xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   type="button"
@@ -176,53 +197,68 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
               {/* Carousel Navigation Controls */}
               <button
                 onClick={handlePrevSlide}
-                className="absolute left-6 bottom-1/2 translate-y-1/2 sm:left-12 sm:top-[-35vh] z-20 p-3 rounded-full bg-black/40 hover:bg-white/20 text-white border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
+                className="absolute left-4 sm:left-10 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/60 hover:bg-white/20 text-white border border-white/20 opacity-80 hover:opacity-100 transition-all backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
                 aria-label="Previous Slide"
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={handleNextSlide}
-                className="absolute right-6 bottom-1/2 translate-y-1/2 sm:right-12 sm:top-[-35vh] z-20 p-3 rounded-full bg-black/40 hover:bg-white/20 text-white border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
+                className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/60 hover:bg-white/20 text-white border border-white/20 opacity-80 hover:opacity-100 transition-all backdrop-blur-md hidden sm:block shadow-lg cursor-pointer"
                 aria-label="Next Slide"
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           </div>
         </section>
 
         {/* VEHICLE CATALOG GRID */}
-        <section className="py-24 bg-[#030304] text-white">
-          <div className="max-w-[1800px] mx-auto px-6 sm:px-10">
+        <section className="py-20 bg-[#030304] text-white">
+          <div className="max-w-[1800px] mx-auto px-4 sm:px-8">
             <Reveal>
-              <div className="mb-16 text-center sm:text-left">
+              <div className="mb-12 text-center sm:text-left">
                 <span className="text-xs font-mono font-bold uppercase tracking-widest text-red-500 block mb-2">
                   Vehicle Platform Catalog
                 </span>
-                <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-white uppercase font-sans">
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white uppercase font-sans">
                   Vehicles
                 </h2>
-                <p className="text-sm text-white/60 mt-2 font-light max-w-2xl">
+                <p className="text-xs sm:text-sm text-white/60 mt-2 font-light max-w-2xl">
                   Select your preferred Tesla platform. Submit requests either via Full Payment Order or Initial Part Payment Reservation.
                 </p>
               </div>
             </Reveal>
 
-            <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
+            <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
               {vehicles.map((vehicle, index) => {
                 const gridSpanClass = index % 3 === 0 ? 'md:col-span-2' : 'md:col-span-1';
                 const aspectRatioClass = index % 3 === 0 ? 'aspect-video sm:aspect-[21/9]' : 'aspect-[4/3]';
+                const isImgFailed = failedImages[vehicle.id];
 
                 return (
                   <MotionCard key={vehicle.id} className={`${gridSpanClass}`}>
-                    <div className="flex flex-col bg-[#08080a] border border-white/10 hover:border-white/20 rounded-2xl overflow-hidden shadow-2xl group transition-all duration-300">
+                    <div className="flex flex-col bg-[#0a0a0d] border border-white/10 hover:border-white/20 rounded-2xl overflow-hidden shadow-2xl group transition-all duration-300">
                       <div className={`relative w-full overflow-hidden bg-black/60 ${aspectRatioClass}`}>
-                        <div
-                          className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.5s] ease-out group-hover:scale-105"
-                          style={{ backgroundImage: `url(${vehicle.image_url})` }}
-                        ></div>
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-transparent"></div>
+                        {!isImgFailed && vehicle.image_url ? (
+                          <>
+                            <div
+                              className="absolute inset-0 bg-cover bg-center transition-transform duration-[1.5s] ease-out group-hover:scale-105"
+                              style={{ backgroundImage: `url(${vehicle.image_url})` }}
+                            ></div>
+                            <img
+                              src={vehicle.image_url}
+                              alt={vehicle.name}
+                              className="hidden"
+                              onError={() => handleImageError(vehicle.id)}
+                            />
+                          </>
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center p-4">
+                            <span className="text-xs font-mono text-white/30 uppercase tracking-widest">{vehicle.name}</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0d] via-transparent to-transparent"></div>
 
                         <div className="absolute top-4 left-4 flex flex-wrap gap-2">
                           <span className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-white border border-white/10">
@@ -315,15 +351,15 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
         </section>
 
         {/* CALL TO ACTION SECTION */}
-        <section className="relative py-24 w-full flex flex-col items-center justify-center bg-[#08080a] border-t border-white/10 overflow-hidden">
+        <section className="relative py-20 w-full flex flex-col items-center justify-center bg-[#060608] border-t border-white/10 overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(232,33,39,0.08)_0%,transparent_70%)] pointer-events-none"></div>
           <Reveal>
-            <div className="relative z-10 text-center px-8 max-w-2xl mx-auto space-y-6">
+            <div className="relative z-10 text-center px-6 max-w-2xl mx-auto space-y-6">
               <Shield className="w-12 h-12 text-red-500 mx-auto" />
-              <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight uppercase font-sans">
+              <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight uppercase font-sans">
                 Ready For Priority Allocation?
               </h2>
-              <p className="text-sm text-white/70 font-light leading-relaxed">
+              <p className="text-xs sm:text-sm text-white/70 font-light leading-relaxed">
                 Connect your investor profile to secure vehicle reservations and participate in exclusive technological allocations.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">

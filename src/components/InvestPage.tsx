@@ -12,6 +12,7 @@ import { fetchProjects, type Project } from '../lib/projects';
 import { useAuth } from '../hooks/useAuth';
 import { savePaymentRequestContext, generateReferenceId } from '../lib/paymentContext';
 import { navigate } from '../lib/navigation';
+import { PageTransition, Reveal, StaggerContainer, MotionCard } from './MotionSystem';
 
 const CATEGORIES = ['All', 'Space', 'Energy', 'Mobility', 'AI', 'Infrastructure', 'Connectivity'];
 
@@ -20,6 +21,7 @@ export const InvestPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   // Allocation Request Modal state
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -38,6 +40,10 @@ export const InvestPage: React.FC = () => {
       mounted = false;
     };
   }, []);
+
+  const handleImageError = (id: string) => {
+    setFailedImages((prev) => ({ ...prev, [id]: true }));
+  };
 
   const filteredProjects = activeCategory === 'All'
     ? projects
@@ -82,7 +88,7 @@ export const InvestPage: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#030304] text-white min-h-screen font-sans selection:bg-red-500 selection:text-white relative">
+    <PageTransition className="bg-[#030304] text-white min-h-screen font-sans selection:bg-red-500 selection:text-white relative overflow-x-hidden">
       {/* Background Ambient Lights */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[140px]" />
@@ -91,51 +97,45 @@ export const InvestPage: React.FC = () => {
 
       <main className="relative z-10 w-full min-h-screen pb-24">
         {/* HERO HEADER */}
-        <section className="relative pt-32 sm:pt-40 pb-16 px-6 max-w-7xl mx-auto">
-          <div className="flex flex-col items-center text-center space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono font-semibold uppercase tracking-widest text-red-400 backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5 text-red-500" />
-              Institutional &amp; Private Equity Portal
-            </div>
-
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight leading-[0.95] max-w-4xl text-white">
-              Explore The <span className="text-red-500">Future</span>
-            </h1>
-
-            <p className="text-sm sm:text-base text-white/60 font-light max-w-2xl leading-relaxed">
-              Discover simulated technology allocation opportunities across frontier sectors including space technology, utility energy storage, AI compute clusters, and autonomous mobility.
-            </p>
-
-            {/* DEMO / SIMULATION DISCLAIMER BANNER */}
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 max-w-2xl text-xs text-amber-200/90 leading-relaxed text-left flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="font-semibold text-amber-300">Simulation Disclosure:</strong> This platform features simulated technology opportunities for demonstration purposes only. No actual securities, stocks, or investments are offered through this demo application.
+        <section className="relative pt-32 sm:pt-40 pb-12 px-6 max-w-7xl mx-auto">
+          <Reveal>
+            <div className="flex flex-col items-center text-center space-y-6">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono font-semibold uppercase tracking-widest text-red-400 backdrop-blur-md shadow-lg">
+                <Sparkles className="w-3.5 h-3.5 text-red-500" />
+                Capital &amp; Venture Direct Portal
               </div>
+
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight leading-[0.95] max-w-4xl text-white font-sans">
+                Explore The <span className="text-[#e82127]">Future</span>
+              </h1>
+
+              <p className="text-xs sm:text-sm text-white/70 font-light max-w-2xl leading-relaxed">
+                Discover next-generation technology participation opportunities across orbital space exploration, utility energy storage, AI compute clusters, and autonomous mobility.
+              </p>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* CATEGORY FILTERING & OPPORTUNITIES GRID */}
-        <section className="max-w-7xl mx-auto px-6 sm:px-10 space-y-8">
-          {/* CATEGORY TABS */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <div className="flex items-center gap-2">
+        <section className="max-w-7xl mx-auto px-4 sm:px-8 space-y-8">
+          {/* CATEGORY NAV TABS */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-4 overflow-x-auto gap-4">
+            <div className="flex items-center gap-2 shrink-0">
               <Filter className="w-4 h-4 text-red-500" />
-              <h2 className="text-lg font-bold uppercase text-white font-mono">
-                Categories
-              </h2>
+              <span className="text-xs font-mono font-bold uppercase text-white/50 tracking-wider">
+                Sectors:
+              </span>
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-4 py-1.5 rounded-full text-xs font-mono font-semibold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
                     activeCategory === cat
-                      ? 'bg-[#e82127] text-white shadow-md'
+                      ? 'bg-[#e82127] text-white shadow-[0_0_15px_rgba(232,33,39,0.4)]'
                       : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10'
                   }`}
                 >
@@ -150,81 +150,91 @@ export const InvestPage: React.FC = () => {
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="w-8 h-8 text-red-500 animate-spin mb-3" />
               <p className="text-xs uppercase font-mono tracking-widest text-white/50">
-                Loading Opportunities...
+                Loading Investment Opportunities...
               </p>
             </div>
           ) : filteredProjects.length === 0 ? (
             <div className="text-center py-16 bg-[#08080a] rounded-2xl border border-white/10 p-6">
-              <p className="text-sm text-white/50 font-mono">No demo opportunities found for category "{activeCategory}".</p>
+              <p className="text-sm text-white/50 font-mono">No opportunities found for sector "{activeCategory}".</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProjects.map((project) => (
-                <div
-                  key={project.id}
-                  className="group rounded-2xl bg-[#08080a] border border-white/10 hover:border-white/25 transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-xl"
-                >
-                  <div className="relative h-48 overflow-hidden bg-zinc-900">
-                    <img
-                      src={project.image_url}
-                      alt={project.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-transparent" />
-                    <div className="absolute top-3 left-3 right-3 flex justify-between items-center">
-                      <span className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-red-400 border border-white/10">
-                        {project.category || 'Technology'}
-                      </span>
-                      <span className="px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-white/80 border border-white/10">
-                        Simulation
-                      </span>
-                    </div>
-                  </div>
+            <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+              {filteredProjects.map((project) => {
+                const isImgFailed = failedImages[project.id];
 
-                  <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-bold text-white uppercase group-hover:text-red-400 transition-colors">
-                        {project.name}
-                      </h3>
-                      <p className="text-xs text-white/60 font-light leading-relaxed line-clamp-3">
-                        {project.description}
-                      </p>
-                    </div>
-
-                    {/* FEATURE TAGS */}
-                    {project.features && project.features.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {project.features.slice(0, 3).map((feat, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-white/70"
-                          >
-                            {feat}
+                return (
+                  <MotionCard key={project.id}>
+                    <div className="group rounded-2xl bg-[#08080a] border border-white/10 hover:border-white/25 transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-xl h-full">
+                      <div className="relative h-48 sm:h-52 overflow-hidden bg-zinc-900">
+                        {!isImgFailed && project.image_url ? (
+                          <img
+                            src={project.image_url}
+                            alt={project.name}
+                            onError={() => handleImageError(project.id)}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-neutral-900 to-black flex items-center justify-center p-4">
+                            <span className="text-xs font-mono text-white/30 uppercase tracking-widest">{project.name}</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#08080a] via-transparent to-transparent" />
+                        <div className="absolute top-3 left-3 right-3 flex justify-between items-center">
+                          <span className="px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-red-400 border border-white/10">
+                            {project.category || 'Technology'}
                           </span>
-                        ))}
+                          <span className="px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-white/80 border border-white/10">
+                            Available
+                          </span>
+                        </div>
                       </div>
-                    )}
 
-                    {/* ILLUSTRATIVE METRIC */}
-                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 font-mono text-xs flex justify-between items-center">
-                      <span className="text-white/40 uppercase text-[10px]">Illustrative Scale:</span>
-                      <span className="text-emerald-400 font-bold">{project.display_metric || 'Variable Target'}</span>
-                    </div>
+                      <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-bold text-white uppercase group-hover:text-red-400 transition-colors">
+                            {project.name}
+                          </h3>
+                          <p className="text-xs text-white/60 font-light leading-relaxed line-clamp-3">
+                            {project.description}
+                          </p>
+                        </div>
 
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={(e) => handleOpenRequestModal(project, e)}
-                        className="w-full py-3 px-4 rounded-xl bg-[#e82127] hover:bg-red-600 active:scale-[0.98] text-white text-xs font-bold uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-[0_0_20px_rgba(232,33,39,0.4)]"
-                      >
-                        <span>Request Demo Allocation</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                        {/* FEATURE TAGS */}
+                        {project.features && project.features.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {project.features.slice(0, 3).map((feat, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-white/70"
+                              >
+                                {feat}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* ILLUSTRATIVE METRIC */}
+                        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 font-mono text-xs flex justify-between items-center">
+                          <span className="text-white/40 uppercase text-[10px]">Scale Metric:</span>
+                          <span className="text-emerald-400 font-bold">{project.display_metric || 'Variable Target'}</span>
+                        </div>
+
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenRequestModal(project, e)}
+                            className="w-full py-3.5 px-4 rounded-xl bg-[#e82127] hover:bg-red-600 active:scale-[0.98] text-white text-xs font-bold uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-[0_0_20px_rgba(232,33,39,0.4)]"
+                          >
+                            <span>Request Order Allocation</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  </MotionCard>
+                );
+              })}
+            </StaggerContainer>
           )}
         </section>
 
@@ -243,15 +253,15 @@ export const InvestPage: React.FC = () => {
 
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold uppercase font-mono">
-                    Demo Allocation Request
+                  <span className="px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold uppercase font-mono">
+                    Investment Order Request
                   </span>
                 </div>
                 <h2 className="text-2xl font-black uppercase text-white tracking-tight pt-1">
                   {selectedProject.name}
                 </h2>
                 <p className="text-xs text-white/60 font-light">
-                  Enter your requested allocation amount. You will review settlement details on the Payment Page.
+                  Enter your requested investment allocation amount. You will review settlement details on the Payment Page.
                 </p>
               </div>
 
@@ -289,9 +299,9 @@ export const InvestPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed font-sans space-y-1">
-                  <div className="font-bold flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 text-[11px] text-white/80 leading-relaxed font-sans space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-white/90">
+                    <Info className="w-3.5 h-3.5 text-red-400 shrink-0" />
                     Notice
                   </div>
                   <p>
@@ -320,7 +330,7 @@ export const InvestPage: React.FC = () => {
           </div>
         )}
       </main>
-    </div>
+    </PageTransition>
   );
 };
 

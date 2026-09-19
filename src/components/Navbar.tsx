@@ -37,9 +37,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   const displayName = profile?.first_name || user?.email?.split('@')[0] || 'Account';
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
 
+  const isInvestActive = currentPath === '/invest' || currentPath.startsWith('/invest');
+  const isShopActive = currentPath === '/shop' || currentPath.startsWith('/shop');
+
   return (
     <header className="fixed top-0 left-0 w-full z-50 transition-all duration-300 bg-[#030304]/90 backdrop-blur-xl border-b border-white/[0.08]">
-      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-2">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
         {/* Brand Logo - Compact on mobile, full size on desktop */}
         <a href="/" className="flex items-center gap-1.5 sm:gap-2 group focus:outline-none rounded-lg p-0.5 transition-all flex-shrink-0">
           <div className="hidden sm:block">
@@ -114,28 +117,30 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Viewport Header Action Group */}
-        <div className="flex md:hidden items-center gap-1 sm:gap-1.5 flex-shrink-0">
+        <div className="flex md:hidden items-center gap-1.5 flex-shrink-0">
           {/* Prominent Quick-Action Links for INVEST & SHOP */}
           <a
             href="/invest"
-            className={`px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded-full transition-all flex items-center gap-0.5 ${
-              currentPath.startsWith('/invest')
-                ? 'bg-red-600/30 text-red-400 border border-red-500/50'
+            aria-label="Invest page"
+            className={`px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all flex items-center gap-1 ${
+              isInvestActive
+                ? 'bg-red-600/30 text-red-400 border border-red-500/60 shadow-[0_0_12px_rgba(232,33,39,0.3)]'
                 : 'text-white/90 bg-white/[0.08] hover:bg-white/15 border border-white/15'
             }`}
           >
-            <TrendingUp className="w-2.5 h-2.5 text-red-400" />
+            <TrendingUp className="w-3 h-3 text-red-400" />
             Invest
           </a>
           <a
             href="/shop"
-            className={`px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase rounded-full transition-all flex items-center gap-0.5 ${
-              currentPath.startsWith('/shop')
-                ? 'bg-[#e82127] text-white border border-[#e82127] shadow-[0_0_10px_rgba(232,33,39,0.5)]'
+            aria-label="Shop page"
+            className={`px-2.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all flex items-center gap-1 ${
+              isShopActive
+                ? 'bg-[#e82127] text-white border border-[#e82127] shadow-[0_0_12px_rgba(232,33,39,0.5)]'
                 : 'text-white bg-[#e82127]/90 hover:bg-[#e82127] border border-[#e82127]'
             }`}
           >
-            <Car className="w-2.5 h-2.5 text-white" />
+            <Car className="w-3 h-3 text-white" />
             Shop
           </a>
 
@@ -143,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-1 text-white/80 hover:text-white focus:outline-none rounded-lg bg-white/[0.05] border border-white/10"
+            className="p-1.5 text-white/80 hover:text-white focus:outline-none rounded-lg bg-white/[0.05] border border-white/10"
             aria-expanded={isMobileMenuOpen}
             aria-label="Toggle navigation menu"
           >
@@ -158,15 +163,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Section 1: Prominent Primary Destinations */}
           <div className="space-y-1.5">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 px-1">
-              Primary Destinations
+              Primary Action
             </p>
             <div className="grid grid-cols-2 gap-2">
               <a
                 href="/invest"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex flex-col p-3 rounded-xl border transition-all ${
-                  currentPath.startsWith('/invest')
-                    ? 'bg-red-950/40 border-red-500/60 shadow-[0_0_15px_rgba(232,33,39,0.2)]'
+                  isInvestActive
+                    ? 'bg-red-950/50 border-red-500/70 shadow-[0_0_15px_rgba(232,33,39,0.25)]'
                     : 'bg-white/[0.04] border-white/10 hover:border-white/20'
                 }`}
               >
@@ -175,14 +180,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <ChevronRight className="w-3.5 h-3.5 text-white/40" />
                 </div>
                 <span className="text-xs font-bold uppercase tracking-wider text-white">INVEST</span>
-                <span className="text-[10px] text-white/50 truncate">Capital & AI Funds</span>
+                <span className="text-[10px] text-white/50 truncate">Capital &amp; AI Funds</span>
               </a>
 
               <a
                 href="/shop"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex flex-col p-3 rounded-xl border transition-all ${
-                  currentPath.startsWith('/shop')
+                  isShopActive
                     ? 'bg-red-600 border-[#e82127] shadow-[0_0_20px_rgba(232,33,39,0.4)]'
                     : 'bg-gradient-to-br from-[#e82127]/80 to-red-900/80 border-[#e82127]/60 hover:border-[#e82127]'
                 }`}
