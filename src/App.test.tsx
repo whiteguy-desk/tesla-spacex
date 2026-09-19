@@ -23,29 +23,16 @@ vi.mock('./lib/supabase', () => {
               order: vi.fn().mockResolvedValue({
                 data: [
                   {
-                    id: 'doge-reserve-fund',
-                    slug: 'doge-reserve-fund',
-                    name: 'Dogecoin Reserve Fund',
-                    category: 'Dogecoin',
-                    status: 'Open',
-                    image_url: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1776248208/projects/doge-reserve.jpg',
-                    description: "Ride the world's most iconic meme coin with institutional-grade exposure",
-                    target_amount: 50000000,
-                    display_metric: '40%–120% Yield',
-                    metadata: null,
-                    created_at: '2025-01-01T00:00:00Z',
-                    updated_at: '2025-01-01T00:00:00Z',
-                  },
-                  {
-                    id: 'xai-colossus-ii-gpu-cluster',
-                    slug: 'xai-colossus-ii-gpu-cluster',
-                    name: 'xAI Colossus II — 1M GPU Cluster',
-                    category: 'xAI',
-                    status: 'Open',
-                    image_url: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1776248181/projects/xai-colossus.jpg',
-                    description: "Back the infrastructure powering the world's most powerful AI",
-                    target_amount: 300000000,
-                    display_metric: '28%–90% Yield',
+                    id: 'spacex-starbase-infra',
+                    slug: 'spacex-starbase-infra',
+                    name: 'Starbase Orbital Launch Hub Expansion',
+                    category: 'Space',
+                    status: 'Demo Allocation Open',
+                    image_url: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1776248200/projects/spacex-space-city.jpg',
+                    description: 'Simulated Opportunity: Starship orbital launch tower expansion',
+                    target_amount: 250000000,
+                    min_investment: 5000,
+                    display_metric: 'Orbital Capacity Scale',
                     metadata: null,
                     created_at: '2025-01-01T00:00:00Z',
                     updated_at: '2025-01-01T00:00:00Z',
@@ -127,37 +114,40 @@ describe('Tesla & Spacex UI Components', () => {
       </AuthProvider>
     );
     expect(screen.getByText(/Institutional & Private Equity Portal/i)).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 1, name: /Invest In The Future/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /Explore The Future/i })).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
-      expect(screen.getByText('xAI Colossus II — 1M GPU Cluster')).toBeTruthy();
+      expect(screen.getByText('Starbase Orbital Launch Hub Expansion')).toBeTruthy();
     });
   });
 
   it('renders ProjectsPage directly with hero stats and fetched project cards', async () => {
-    render(<ProjectsPage />);
-    expect(screen.getByText('Private Market Access')).toBeTruthy();
-    expect(screen.getAllByText(/Investment/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Opportunities/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('Open Now')).toBeTruthy();
-    expect(screen.getByText('Total Projects')).toBeTruthy();
+    render(
+      <AuthProvider>
+        <ProjectsPage />
+      </AuthProvider>
+    );
+    expect(screen.getByText(/Demo Opportunities & Tech Simulations/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /Project Discovery/i })).toBeTruthy();
 
     await waitFor(() => {
-      expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
-      expect(screen.getByText('xAI Colossus II — 1M GPU Cluster')).toBeTruthy();
+      expect(screen.getByText('Starbase Orbital Launch Hub Expansion')).toBeTruthy();
     });
   });
 
-  it('renders empty state in ProjectsPage when no projects returned', async () => {
+  it('falls back gracefully to default projects when DB table returns empty or error', async () => {
     vi.mocked(supabase.from).mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
       }),
     } as any);
 
-    render(<ProjectsPage />);
+    render(
+      <AuthProvider>
+        <ProjectsPage />
+      </AuthProvider>
+    );
     await waitFor(() => {
-      expect(screen.getByText('No Projects Available')).toBeTruthy();
+      expect(screen.getByText('Starbase Orbital Launch Hub Expansion')).toBeTruthy();
     });
   });
 
@@ -217,9 +207,9 @@ describe('Tesla & Spacex UI Components', () => {
     window.history.pushState({}, '', '/projects');
     render(<App />);
     expect(screen.getAllByText(/Tesla/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('Private Market Access')).toBeTruthy();
+    expect(screen.getByText(/Demo Opportunities & Tech Simulations/i)).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
+      expect(screen.getByText('Starbase Orbital Launch Hub Expansion')).toBeTruthy();
     });
   });
 });
