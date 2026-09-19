@@ -32,7 +32,7 @@ export interface AiPlan {
 
 export const DEFAULT_MEMBERSHIP_TIERS: MembershipTier[] = [
   {
-    id: 'silver',
+    id: '00000000-0000-4000-c000-000000000001',
     name: 'Silver',
     price: 2000,
     currency: 'USD',
@@ -44,7 +44,7 @@ export const DEFAULT_MEMBERSHIP_TIERS: MembershipTier[] = [
     upgrade_info: 'Deposit $2,000 or maintain active investments to unlock Silver privileges.',
   },
   {
-    id: 'gold',
+    id: '00000000-0000-4000-c000-000000000002',
     name: 'Gold',
     price: 5000,
     currency: 'USD',
@@ -56,7 +56,7 @@ export const DEFAULT_MEMBERSHIP_TIERS: MembershipTier[] = [
     upgrade_info: 'Deposit $5,000 or upgrade to unlock Gold privileges.',
   },
   {
-    id: 'platinum',
+    id: '00000000-0000-4000-c000-000000000003',
     name: 'Platinum',
     price: 10000,
     currency: 'USD',

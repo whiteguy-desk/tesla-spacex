@@ -11,11 +11,51 @@ import {
 } from '../lib/paymentRequests';
 import { DepositPage } from '../components/dashboard/DepositPage';
 import { WithdrawalPage } from '../components/dashboard/WithdrawalPage';
+import { MembershipPage } from '../components/dashboard/MembershipPage';
 import { supabase } from '../lib/supabase';
 
 // Mock Supabase client
 const mockInsert = vi.fn().mockReturnThis();
 const mockSelect = vi.fn().mockReturnThis();
+const mockEq = vi.fn().mockReturnThis();
+const mockOrder = vi.fn().mockResolvedValue({
+  data: [
+    {
+      id: '00000000-0000-4000-c000-000000000001',
+      name: 'Silver',
+      price: 2000,
+      currency: 'USD',
+      description: 'Entry tier membership.',
+      benefits: ['Priority Support'],
+      features: ['$2,000 Entry Level'],
+      display_order: 1,
+      active: true,
+    },
+    {
+      id: '00000000-0000-4000-c000-000000000002',
+      name: 'Gold',
+      price: 5000,
+      currency: 'USD',
+      description: 'Elevated membership tier.',
+      benefits: ['24/7 Priority Support'],
+      features: ['$5,000 Entry Level'],
+      display_order: 2,
+      active: true,
+    },
+    {
+      id: '00000000-0000-4000-c000-000000000003',
+      name: 'Platinum',
+      price: 10000,
+      currency: 'USD',
+      description: 'Institutional-grade tier.',
+      benefits: ['1-on-1 Strategy Sessions'],
+      features: ['$10,000 Entry Level'],
+      display_order: 3,
+      active: true,
+    },
+  ],
+  error: null,
+});
 const mockSingle = vi.fn().mockResolvedValue({
   data: { id: 'test-req-id-123' },
   error: null,
@@ -47,6 +87,8 @@ vi.mock('../lib/supabase', () => ({
     from: vi.fn().mockImplementation(() => ({
       insert: mockInsert,
       select: mockSelect,
+      eq: mockEq,
+      order: mockOrder,
       single: mockSingle,
     })),
   },
@@ -63,6 +105,7 @@ vi.mock('../hooks/useAuth', () => ({
 vi.mock('../lib/dashboard', () => ({
   fetchUserDashboardData: vi.fn().mockResolvedValue({
     totalBalance: 50000,
+    activePlanId: null,
     orders: [],
     deposits: [],
     withdrawals: [],
@@ -109,15 +152,27 @@ describe('Centralized Payment Request System', () => {
     expect(result.status).toBe('pending');
   });
 
-  it('submits membership upgrade request via paymentRequests service', async () => {
+  it('submits membership upgrade request via paymentRequests service with UUID', async () => {
+    const platinumUuid = '00000000-0000-4000-c000-000000000003';
     const result = await submitMembershipUpgradeRequest({
-      tierId: 'platinum',
+      tierId: platinumUuid,
       tierName: 'Platinum',
       price: 10000,
     });
 
     expect(result.success).toBe(true);
     expect(result.status).toBe('pending');
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'submit-payment-request',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          request_type: 'membership_upgrade',
+          plan_id: platinumUuid,
+          plan_name: 'Platinum',
+          amount: 10000,
+        }),
+      })
+    );
   });
 
   it('submits vehicle purchase part-payment request with correct amount calculation', async () => {
@@ -251,5 +306,36 @@ describe('Centralized Payment Request System', () => {
       expect(screen.getAllByText(/registered@tesla.com/i).length).toBeGreaterThan(0);
       expect(screen.queryByText(/telegram/i)).toBeNull();
     });
+  });
+
+  it('renders MembershipPage and submits tier upgrade request with UUID', async () => {
+    render(<MembershipPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Request Silver Upgrade/i)).toBeTruthy();
+      expect(screen.getByText(/Request Gold Upgrade/i)).toBeTruthy();
+      expect(screen.getByText(/Request Platinum Upgrade/i)).toBeTruthy();
+    });
+
+    const upgradeBtn = screen.getByRole('button', { name: /Request Silver Upgrade/i });
+    await act(async () => {
+      fireEvent.click(upgradeBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Upgrade request for Silver Tier submitted successfully/i)).toBeTruthy();
+    });
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'submit-payment-request',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          request_type: 'membership_upgrade',
+          plan_id: '00000000-0000-4000-c000-000000000001',
+          plan_name: 'Silver',
+          amount: 2000,
+        }),
+      })
+    );
   });
 });

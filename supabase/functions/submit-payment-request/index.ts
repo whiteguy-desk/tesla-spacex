@@ -24,9 +24,6 @@ function isValidUUID(uuidStr: unknown): boolean {
   return uuidRegex.test(uuidStr);
 }
 
-Deno.serve(async (req) => {
-  console.log(`[Edge Function Request] Method: ${req.method} | URL: ${req.url}`);
-
 function formatCurrency(amount: number): string {
   return Number(amount || 0).toLocaleString('en-US', {
     minimumFractionDigits: 0,
@@ -62,7 +59,7 @@ export interface TransactionDetails {
   createdAt: string;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders });
   }
@@ -122,6 +119,7 @@ serve(async (req) => {
       quantity = 1,
       full_price = 0,
       part_payment_amount = 0,
+      order_id,
     } = body;
 
     console.log(`[Edge Function Payload] request_type: ${request_type} | amount: ${amount} ${currency}`);
@@ -180,14 +178,7 @@ serve(async (req) => {
         recordId = deposit.id;
         console.log(`[DB Insert Success - Deposit] ID: ${recordId}`);
 
-        detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency} | Payment Method: ${payment_method || 'Standard Deposit'}`;
-        emailDetailsHTML = `
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Deposit Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Payment Method:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${payment_method || 'Standard Deposit'}</td></tr>
-        `;
-
         transactionType = 'deposit';
-
         const narration = `Deposit request — $${formatCurrency(depositAmount)} ${currency} via ${method}`;
 
         details = {
@@ -233,10 +224,6 @@ serve(async (req) => {
           throw new Error(`Deposit created but transaction logging failed: ${txErr.message}`);
         }
         console.log(`[DB Insert Success - Deposit Transaction] Ref: ${ref}`);
-        if (txErr) {
-          console.error('[Transaction Ledger Insert Error]', txErr);
-          throw txErr;
-        }
         break;
       }
 
@@ -267,13 +254,7 @@ serve(async (req) => {
         recordId = wth.id;
         console.log(`[DB Insert Success - Withdrawal] ID: ${recordId}`);
 
-        detailSummary = `Amount: $${Number(amount).toLocaleString()} ${currency} (${asset_name || vehicle_name || 'Account Balance'})`;
-        emailDetailsHTML = `
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Withdrawal Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Asset/Source:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${asset_name || vehicle_name || 'Account Balance'}</td></tr>
-        `;
         transactionType = 'withdrawal';
-
         const narration = isCashOut
           ? `Vehicle cash-out request — ${sourceAsset} — $${formatCurrency(wthAmount)} ${currency}`
           : `Withdrawal request — $${formatCurrency(wthAmount)} ${currency} from ${sourceAsset}`;
@@ -321,10 +302,6 @@ serve(async (req) => {
           throw new Error(`Withdrawal created but transaction logging failed: ${txErr.message}`);
         }
         console.log(`[DB Insert Success - Withdrawal Transaction] Ref: ${ref}`);
-        if (txErr) {
-          console.error('[Transaction Ledger Insert Error]', txErr);
-          throw txErr;
-        }
         break;
       }
 
@@ -388,23 +365,7 @@ serve(async (req) => {
         recordId = order.id;
         console.log(`[DB Insert Success - Order] ID: ${recordId}`);
 
-        const paymentOptionLabel = isFullPayment ? 'Pay In Full' : 'Part Payment';
-        detailSummary = isFullPayment
-          ? `Vehicle: ${vehicle_name || 'Tesla Vehicle'} | Option: Pay In Full | Vehicle Price: $${Number(effectiveFullPrice).toLocaleString()}`
-          : `Vehicle: ${vehicle_name || 'Tesla Vehicle'} | Option: Part Payment ($${Number(effectivePartPayment).toLocaleString()}) | Full Price: $${Number(effectiveFullPrice).toLocaleString()} | Balance: $${Number(remainingBalance).toLocaleString()}`;
-
-        emailDetailsHTML = `
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Vehicle Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${vehicle_name || 'Tesla Vehicle'}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Vehicle ID / Ref:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedVehicleId || vehicle_id || 'N/A'}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Payment Option:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee; color: #e82127; font-weight: bold;">${paymentOptionLabel}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Full Vehicle Price:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(effectiveFullPrice).toLocaleString()} ${currency}</td></tr>
-          ${!isFullPayment ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Initial Part Payment:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(effectivePartPayment).toLocaleString()} ${currency}</td></tr>` : ''}
-          ${!isFullPayment ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Remaining Balance:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(remainingBalance).toLocaleString()} ${currency}</td></tr>` : ''}
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${quantity}</td></tr>
-        `;
-
         transactionType = 'order';
-
         const narration = isFullPayment
           ? `Vehicle purchase — ${vName} — Pay In Full — $${formatCurrency(effectiveFullPrice)} ${currency} — Quantity: ${qty}`
           : `Vehicle purchase — ${vName} — Part Payment — Initial: $${formatCurrency(effectivePartPayment)} ${currency} — Full Price: $${formatCurrency(effectiveFullPrice)} ${currency} — Remaining: $${formatCurrency(remainingBalance)} ${currency} — Quantity: ${qty}`;
@@ -452,10 +413,6 @@ serve(async (req) => {
           throw new Error(`Order created but transaction logging failed: ${txErr.message}`);
         }
         console.log(`[DB Insert Success - Order Transaction] Record: ${recordId}`);
-        if (txErr) {
-          console.error('[Transaction Ledger Insert Error]', txErr);
-          throw txErr;
-        }
         break;
       }
 
@@ -502,14 +459,7 @@ serve(async (req) => {
         recordId = inv.id;
         console.log(`[DB Insert Success - Investment] ID: ${recordId}`);
 
-        detailSummary = `Project: ${project_name || 'Investment Project'} | Amount: $${Number(amount).toLocaleString()} ${currency}`;
-        emailDetailsHTML = `
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Investment Project:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${project_name || 'Investment Project'}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Project ID / Ref:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedProjectId || project_id || 'N/A'}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Allocation Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
-        `;
         transactionType = 'investment';
-
         const narration = `Investment request — ${pName} — $${formatCurrency(invAmount)} ${currency}`;
 
         details = {
@@ -555,63 +505,70 @@ serve(async (req) => {
           throw new Error(`Investment created but transaction logging failed: ${txErr.message}`);
         }
         console.log(`[DB Insert Success - Investment Transaction] Record: ${recordId}`);
-        if (txErr) {
-          console.error('[Transaction Ledger Insert Error]', txErr);
-          throw txErr;
-        }
         break;
       }
 
       case 'plan_upgrade':
       case 'membership_upgrade': {
-        let resolvedPlanId: string | null = null;
-        let resolvedTierName: string = plan_name || 'Membership Tier';
-        const upgradeAmount = Number(amount) || 0;
+        let tierRecord: { id: string; name: string; price: number; currency: string; active: boolean } | null = null;
 
         if (isValidUUID(plan_id)) {
-          resolvedPlanId = plan_id;
-        }
-
-        if (!resolvedPlanId && (plan_id || plan_name)) {
-          const searchVal = plan_name || plan_id;
-          const { data: tierByName } = await supabaseAdmin
+          const { data: tier, error: tErr } = await supabaseAdmin
             .from('membership_tiers')
-            .select('id, name')
-            .ilike('name', `%${searchVal}%`)
+            .select('id, name, price, currency, active')
+            .eq('id', plan_id)
             .maybeSingle();
 
-          if (tierByName) {
-            resolvedPlanId = tierByName.id;
-            resolvedTierName = tierByName.name;
-          } else {
-            const { data: tiers } = await supabaseAdmin
-              .from('membership_tiers')
-              .select('id, name');
-            if (tiers && tiers.length > 0) {
-              const match = tiers.find(
-                (t) =>
-                  (plan_id && t.id === plan_id) ||
-                  (plan_id && t.name.toLowerCase() === plan_id.toLowerCase()) ||
-                  (plan_name && t.name.toLowerCase() === plan_name.toLowerCase())
-              );
-              if (match) {
-                resolvedPlanId = match.id;
-                resolvedTierName = match.name;
-              }
-            }
+          if (tErr) {
+            console.error('[DB Query Error - membership_tiers by UUID]', tErr);
+            throw new Error(`Failed to verify membership tier: ${tErr.message}`);
           }
+          tierRecord = tier;
         }
 
+        if (!tierRecord && (plan_id || plan_name)) {
+          const searchVal = plan_name || plan_id;
+          const { data: tier, error: tErr } = await supabaseAdmin
+            .from('membership_tiers')
+            .select('id, name, price, currency, active')
+            .ilike('name', searchVal)
+            .maybeSingle();
+
+          if (tErr) {
+            console.error('[DB Query Error - membership_tiers by name]', tErr);
+          }
+          tierRecord = tier;
+        }
+
+        if (!tierRecord) {
+          console.warn(`[Membership Upgrade Error] Tier not found: ID=${plan_id}, Name=${plan_name}`);
+          return new Response(
+            JSON.stringify({ error: 'Selected membership tier was not found. Please select a valid membership tier.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (tierRecord.active === false) {
+          console.warn(`[Membership Upgrade Error] Tier is inactive: ${tierRecord.name}`);
+          return new Response(
+            JSON.stringify({ error: 'Selected membership tier is currently inactive and cannot be requested.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Database-authoritative values
+        const resolvedPlanId = tierRecord.id;
+        const resolvedTierName = tierRecord.name;
+        const tierPrice = Number(tierRecord.price) || Number(amount) || 0;
+        const tierCurrency = tierRecord.currency || currency || 'USD';
         const isMembership = request_type === 'membership_upgrade';
 
         const subPayload: Record<string, any> = {
           user_id: user.id,
+          plan_id: resolvedPlanId,
           status: 'pending',
-          notes: notes || `Request to upgrade to ${resolvedTierName}`,
+          notes: notes || `Request to upgrade to ${resolvedTierName} Tier`,
         };
-        if (resolvedPlanId) {
-          subPayload.plan_id = resolvedPlanId;
-        }
 
         const { data: sub, error: subErr } = await supabaseAdmin
           .from('user_subscriptions')
@@ -626,24 +583,17 @@ serve(async (req) => {
         recordId = sub.id;
         console.log(`[DB Insert Success - User Subscription] ID: ${recordId}`);
 
-        detailSummary = `Requested Tier/Plan: ${resolvedTierName} | Price/Amount: $${Number(amount).toLocaleString()} ${currency}`;
-        emailDetailsHTML = `
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Requested Membership Tier:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedTierName}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Tier UUID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${resolvedPlanId || 'Not specified'}</td></tr>
-          <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Tier Price:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${Number(amount).toLocaleString()} ${currency}</td></tr>
-        `;
         transactionType = 'plan';
-
         const narration = isMembership
-          ? `Membership upgrade request — ${resolvedTierName} — $${formatCurrency(upgradeAmount)} ${currency}`
-          : `Plan upgrade request — ${resolvedTierName} — $${formatCurrency(upgradeAmount)} ${currency}`;
+          ? `Membership upgrade request — ${resolvedTierName} Tier — $${formatCurrency(tierPrice)} ${tierCurrency}`
+          : `Plan upgrade request — ${resolvedTierName} — $${formatCurrency(tierPrice)} ${tierCurrency}`;
 
         details = {
           requestType,
           requestTypeLabel: isMembership ? 'Membership Upgrade' : 'Plan Upgrade',
           narration,
-          amount: upgradeAmount,
-          currency,
+          amount: tierPrice,
+          currency: tierCurrency,
           paymentMethod: 'Account Upgrade',
           paymentOption: 'n/a',
           productName: '',
@@ -651,10 +601,10 @@ serve(async (req) => {
           projectName: '',
           projectId: '',
           planName: resolvedTierName,
-          planId: resolvedPlanId || plan_id || '',
+          planId: resolvedPlanId,
           quantity: 1,
-          fullPrice: upgradeAmount,
-          initialPayment: upgradeAmount,
+          fullPrice: tierPrice,
+          initialPayment: tierPrice,
           remainingBalance: 0,
           notes: notes || '',
           referenceId: ref,
@@ -669,8 +619,8 @@ serve(async (req) => {
         const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: transactionType,
-          amount: upgradeAmount,
-          currency,
+          amount: tierPrice,
+          currency: tierCurrency,
           status: 'pending',
           reference: recordId,
           description: narration,
@@ -681,10 +631,6 @@ serve(async (req) => {
           throw new Error(`Subscription created but transaction logging failed: ${txErr.message}`);
         }
         console.log(`[DB Insert Success - Plan Transaction] Record: ${recordId}`);
-        if (txErr) {
-          console.error('[Transaction Ledger Insert Error]', txErr);
-          throw txErr;
-        }
         break;
       }
 
@@ -710,10 +656,6 @@ serve(async (req) => {
       console.warn('[Brevo Configuration] BREVO_SENDER_EMAIL environment secret is not set.');
       emailErrorMessage = 'BREVO_SENDER_EMAIL environment secret is not configured.';
     } else {
-      console.log(`[Brevo Email Dispatch] Sending ${request_type} request notification to admin (${ADMIN_EMAIL}) and user (${userEmail})`);
-
-      const requestTypeLabel = request_type.replace(/_/g, ' ').toUpperCase();
-      const requestDate = new Date().toISOString();
       console.log(`[Brevo Email Dispatch] Sending ${details.requestTypeLabel} request notification via Brevo to admin (${ADMIN_EMAIL}) and user (${userEmail}) using sender ${brevoSenderName} <${brevoSenderEmail}>`);
 
       // 1. Construct Admin Email Content from normalized details
@@ -749,6 +691,7 @@ serve(async (req) => {
             ${details.productName ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Product / Vehicle:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${details.productName}</td></tr>` : ''}
             ${details.projectName ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Project Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${details.projectName}</td></tr>` : ''}
             ${details.planName ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Plan / Tier Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${details.planName}</td></tr>` : ''}
+            ${details.planId ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Plan / Tier UUID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee; font-family: monospace;">${details.planId}</td></tr>` : ''}
             ${details.quantity > 1 || details.requestType === 'vehicle_purchase' ? `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Quantity:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${details.quantity}</td></tr>` : ''}
             ${details.requestType === 'vehicle_purchase' ? `
               <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Full Vehicle Price:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">$${formatCurrency(details.fullPrice)} ${details.currency}</td></tr>
@@ -776,6 +719,7 @@ serve(async (req) => {
             <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Reference ID:</strong> ${details.referenceId}</p>
             <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Request ID:</strong> ${details.recordId}</p>
             <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Requested Amount:</strong> $${formatCurrency(details.amount)} ${details.currency}</p>
+            ${details.planName ? `<p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Membership Tier:</strong> ${details.planName}</p>` : ''}
             ${details.requestType === 'vehicle_purchase' && details.paymentOption === 'part' ? `
               <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Full Vehicle Price:</strong> $${formatCurrency(details.fullPrice)} ${details.currency}</p>
               <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Initial Part Payment:</strong> $${formatCurrency(details.initialPayment)} ${details.currency}</p>
@@ -784,7 +728,7 @@ serve(async (req) => {
           </div>
 
           <p><strong>Status & Next Steps:</strong></p>
-          <p style="margin-top: 4px;">Our review team will evaluate your request and contact you directly via your registered email address (<strong>${details.customerEmail}</strong>) with instructions.</p>
+          <p style="margin-top: 4px;">Our review team will evaluate your request and contact you directly via your registered email address (<strong>${details.customerEmail}</strong>) with instructions on settlement and account verification.</p>
 
           <div style="background-color: #fff8f8; border: 1px solid #fecaca; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #7f1d1d; margin-top: 20px;">
             <strong>Important Notice:</strong> Submitting a request registers your interest in our system for review and verification. It does <em>NOT</em> mean that payment has been completed or approved, nor does it perform an automatic charge.
@@ -885,8 +829,8 @@ serve(async (req) => {
     console.error('[Edge Function Unhandled Error]', err);
     return new Response(
       JSON.stringify({
-        error: 'Unable to submit your request right now. Please try again later.',
-        details: err?.message || String(err),
+        error: err?.message || 'Unable to submit your request right now. Please try again later.',
+        details: String(err),
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
