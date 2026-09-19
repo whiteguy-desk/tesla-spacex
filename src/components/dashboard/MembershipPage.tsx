@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, ShieldCheck, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
+import { CreditCard, ShieldCheck, CheckCircle2, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchMembershipTiers, type MembershipTier } from '../../lib/plans';
 import { fetchUserDashboardData } from '../../lib/dashboard';
@@ -11,7 +11,7 @@ export const MembershipPage: React.FC = () => {
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [upgradingId, setUpgradingId] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -47,9 +47,15 @@ export const MembershipPage: React.FC = () => {
     setUpgradingId(null);
 
     if (!result.success) {
-      setStatusMessage(`Error submitting upgrade request: ${result.message}`);
+      setStatusMessage({
+        type: 'error',
+        text: `Error submitting upgrade request: ${result.message}`,
+      });
     } else {
-      setStatusMessage(`Upgrade request for ${tier.name} Tier submitted successfully! Reference: ${(result.referenceId || result.requestId || '').slice(0, 8)}. Settlement details will be sent to your email (${user.email}).`);
+      setStatusMessage({
+        type: 'success',
+        text: `Upgrade request for ${tier.name} Tier submitted successfully! Reference: ${(result.referenceId || result.requestId || '').slice(0, 8)}. Settlement details will be sent to your email (${user.email}).`,
+      });
     }
   };
 
@@ -75,9 +81,19 @@ export const MembershipPage: React.FC = () => {
       </div>
 
       {statusMessage && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{statusMessage}</span>
+        <div
+          className={`p-4 rounded-xl border text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
+            statusMessage.type === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-red-500/10 border-red-500/30 text-red-400'
+          }`}
+        >
+          {statusMessage.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 shrink-0" />
+          )}
+          <span>{statusMessage.text}</span>
         </div>
       )}
 
@@ -85,8 +101,9 @@ export const MembershipPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {tiers.map((tier) => {
           const isCurrent = tier.id === activePlanId;
-          const isGold = tier.id.includes('gold');
-          const isPlatinum = tier.id.includes('platinum');
+          const tierNameLower = tier.name.toLowerCase();
+          const isGold = tierNameLower.includes('gold');
+          const isPlatinum = tierNameLower.includes('platinum');
 
           let cardGradient = 'from-zinc-800 to-zinc-950 border-white/10';
           let textColor = 'text-slate-300';
