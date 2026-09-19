@@ -12,12 +12,26 @@ import {
 import { DepositPage } from '../components/dashboard/DepositPage';
 import { WithdrawalPage } from '../components/dashboard/WithdrawalPage';
 import { MembershipPage } from '../components/dashboard/MembershipPage';
+import { PaymentPage } from '../components/PaymentPage';
+import {
+  savePaymentRequestContext,
+  getPaymentRequestContext,
+  clearPaymentRequestContext
+} from '../lib/paymentContext';
 import { supabase } from '../lib/supabase';
 
-// Mock Supabase client
-const mockInsert = vi.fn().mockReturnThis();
-const mockSelect = vi.fn().mockReturnThis();
-const mockEq = vi.fn().mockReturnThis();
+const mockInsert = vi.fn().mockResolvedValue({ error: null });
+const mockSelect = vi.fn().mockReturnValue({
+  order: vi.fn().mockResolvedValue({ data: [], error: null }),
+  eq: vi.fn().mockReturnValue({
+    order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+  }),
+});
+const mockEq = vi.fn().mockReturnValue({
+  order: vi.fn().mockResolvedValue({ data: [], error: null }),
+  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+});
 const mockOrder = vi.fn().mockResolvedValue({
   data: [
     {
@@ -116,6 +130,10 @@ vi.mock('../lib/dashboard', () => ({
 describe('Centralized Payment Request System', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearPaymentRequestContext();
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+    }
   });
 
   it('submits deposit request via paymentRequests service', async () => {
@@ -291,15 +309,14 @@ describe('Centralized Payment Request System', () => {
     expect(mockContext.json).toHaveBeenCalled();
   });
 
-  it('renders DepositPage form and shows in-app success state on submission without Telegram redirect', async () => {
+  it('renders DepositPage form and saves context to route to General Payment Page', async () => {
     render(<DepositPage />);
 
-    // Wait for initial balance to load
     await waitFor(() => {
       expect(screen.getByText('$50,000.00')).toBeTruthy();
     });
 
-    const submitBtn = screen.getByRole('button', { name: /Submit Deposit Request/i });
+    const submitBtn = screen.getByRole('button', { name: /Proceed to Payment/i });
     expect(submitBtn).toBeTruthy();
 
     const form = submitBtn.closest('form')!;
@@ -307,22 +324,21 @@ describe('Centralized Payment Request System', () => {
       fireEvent.submit(form);
     });
 
-    await waitFor(() => {
-      expect(screen.getAllByText(/Request Received/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/registered@tesla.com/i).length).toBeGreaterThan(0);
-      expect(screen.queryByText(/telegram/i)).toBeNull();
-    });
+    const ctx = getPaymentRequestContext();
+    expect(ctx).toBeTruthy();
+    expect(ctx?.request_type).toBe('deposit');
+    expect(ctx?.amount).toBe(2000);
+    expect(ctx?.reference_id).toMatch(/^DEP-/);
   });
 
-  it('renders WithdrawalPage form and shows in-app success state on submission', async () => {
+  it('renders WithdrawalPage form and saves context to route to General Payment Page', async () => {
     render(<WithdrawalPage />);
 
-    // Wait for balance to load
     await waitFor(() => {
       expect(screen.getByText('$50,000.00')).toBeTruthy();
     });
 
-    const submitBtn = screen.getByRole('button', { name: /Submit Withdrawal Request/i });
+    const submitBtn = screen.getByRole('button', { name: /Proceed to Payment/i });
     expect(submitBtn).toBeTruthy();
 
     const form = submitBtn.closest('form')!;
@@ -330,14 +346,14 @@ describe('Centralized Payment Request System', () => {
       fireEvent.submit(form);
     });
 
-    await waitFor(() => {
-      expect(screen.getAllByText(/Withdrawal Request Received/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/registered@tesla.com/i).length).toBeGreaterThan(0);
-      expect(screen.queryByText(/telegram/i)).toBeNull();
-    });
+    const ctx = getPaymentRequestContext();
+    expect(ctx).toBeTruthy();
+    expect(ctx?.request_type).toBe('withdrawal');
+    expect(ctx?.amount).toBe(500);
+    expect(ctx?.reference_id).toMatch(/^WTH-/);
   });
 
-  it('renders MembershipPage and submits tier upgrade request with UUID', async () => {
+  it('renders MembershipPage and saves tier upgrade request context for General Payment Page', async () => {
     render(<MembershipPage />);
 
     await waitFor(() => {
@@ -351,20 +367,80 @@ describe('Centralized Payment Request System', () => {
       fireEvent.click(upgradeBtn);
     });
 
+    const ctx = getPaymentRequestContext();
+    expect(ctx).toBeTruthy();
+    expect(ctx?.request_type).toBe('membership_upgrade');
+    expect(ctx?.tier_id).toBe('39210b44-7892-4c62-b15a-d5f429e83bbf');
+    expect(ctx?.amount).toBe(2000);
+  });
+
+  it('renders General Payment Page with summary, payment instructions, and handles confirmation', async () => {
+    savePaymentRequestContext({
+      request_type: 'vehicle_purchase',
+      reference_id: 'ORD-TEST123',
+      vehicle_id: 'cybertruck',
+      vehicle_name: 'Cybertruck',
+      item_name: 'Cybertruck',
+      payment_option: 'part',
+      full_price: 80000,
+      part_payment_amount: 5000,
+      quantity: 1,
+      amount: 5000,
+      currency: 'USD',
+      customer_name: 'Elon Musk',
+      customer_email: 'registered@tesla.com',
+      is_submitted: false,
+    });
+
+    render(<PaymentPage />);
+
+    expect(screen.getByText(/Vehicle Order Request/i)).toBeTruthy();
+    expect(screen.getAllByText('Cybertruck').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Elon Musk/i)).toBeTruthy();
+    expect(screen.getByText(/registered@tesla.com/i)).toBeTruthy();
+    expect(screen.getByText(/Tesla & SpaceX Capital Settlement/i)).toBeTruthy();
+
+    const confirmBtn = screen.getByRole('button', { name: /Confirm & Submit Request/i });
+    expect(confirmBtn).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
     await waitFor(() => {
-      expect(screen.getByText(/Upgrade request for Silver Tier submitted successfully/i)).toBeTruthy();
+      expect(screen.getByText(/Request Recorded & Submitted/i)).toBeTruthy();
     });
 
     expect(supabase.functions.invoke).toHaveBeenCalledWith(
       'submit-payment-request',
       expect.objectContaining({
         body: expect.objectContaining({
-          request_type: 'membership_upgrade',
-          plan_id: '39210b44-7892-4c62-b15a-d5f429e83bbf',
-          plan_name: 'Silver',
-          amount: 2000,
+          request_type: 'vehicle_purchase',
+          vehicle_id: 'cybertruck',
+          amount: 5000,
         }),
       })
     );
+  });
+
+  it('prevents duplicate submissions on Payment Page refresh when is_submitted is true', async () => {
+    savePaymentRequestContext({
+      request_type: 'deposit',
+      reference_id: 'DEP-REF999',
+      amount: 5000,
+      currency: 'USD',
+      item_name: 'Account Deposit',
+      customer_name: 'Elon Musk',
+      customer_email: 'registered@tesla.com',
+      is_submitted: true,
+      status: 'pending',
+    });
+
+    render(<PaymentPage />);
+
+    expect(screen.getByText(/Request Recorded & Submitted/i)).toBeTruthy();
+    expect(screen.getAllByText('DEP-REF999').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Confirm & Submit Request/i })).toBeNull();
+    expect(supabase.functions.invoke).not.toHaveBeenCalled();
   });
 });

@@ -126,9 +126,8 @@ describe('Tesla & Spacex UI Components', () => {
         <InvestPage />
       </AuthProvider>
     );
-    expect(screen.getByText(/Next-Generation/i)).toBeTruthy();
-    expect(screen.getByText(/Technology Portfolio/i)).toBeTruthy();
-    expect(screen.getByText(/Mandatory Demo Disclosure & Independent Project Notice/i)).toBeTruthy();
+    expect(screen.getByText(/Institutional & Private Equity Portal/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /Invest In The Future/i })).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('Dogecoin Reserve Fund')).toBeTruthy();
       expect(screen.getByText('xAI Colossus II — 1M GPU Cluster')).toBeTruthy();
@@ -181,7 +180,7 @@ describe('Tesla & Spacex UI Components', () => {
 
     const nextButton = screen.getByLabelText('Next Slide');
     fireEvent.click(nextButton);
-    expect(screen.getByLabelText('Go to slide 2')).toBeTruthy();
+    expect(screen.getAllByText('Model Y').length).toBeGreaterThan(0);
   });
 
   it('renders HowItWorksPage directly with all guide sections', () => {

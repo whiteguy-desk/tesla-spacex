@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, ShieldCheck, CheckCircle2, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { CreditCard, ShieldCheck, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchMembershipTiers, type MembershipTier } from '../../lib/plans';
 import { fetchUserDashboardData } from '../../lib/dashboard';
-import { submitMembershipUpgradeRequest } from '../../lib/paymentRequests';
+import { savePaymentRequestContext, generateReferenceId } from '../../lib/paymentContext';
+import { navigate } from '../../lib/navigation';
 
 export const MembershipPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [tiers, setTiers] = useState<MembershipTier[]>([]);
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [upgradingId, setUpgradingId] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -33,30 +32,26 @@ export const MembershipPage: React.FC = () => {
     };
   }, [user?.id]);
 
-  const handleSelectPlan = async (tier: MembershipTier) => {
+  const handleSelectPlan = (tier: MembershipTier) => {
     if (!user) return;
-    setUpgradingId(tier.id);
-    setStatusMessage(null);
 
-    const result = await submitMembershipUpgradeRequest({
-      tierId: tier.id,
-      tierName: tier.name,
-      price: tier.price,
+    const ref = generateReferenceId('membership_upgrade');
+    const customerName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : undefined;
+
+    savePaymentRequestContext({
+      request_type: 'membership_upgrade',
+      reference_id: ref,
+      tier_id: tier.id,
+      tier_name: tier.name,
+      item_name: `${tier.name} Membership Tier`,
+      amount: tier.price,
+      currency: 'USD',
+      customer_name: customerName,
+      customer_email: user.email,
+      is_submitted: false,
     });
 
-    setUpgradingId(null);
-
-    if (!result.success) {
-      setStatusMessage({
-        type: 'error',
-        text: `Error submitting upgrade request: ${result.message}`,
-      });
-    } else {
-      setStatusMessage({
-        type: 'success',
-        text: `Upgrade request for ${tier.name} Tier submitted successfully! Reference: ${(result.referenceId || result.requestId || '').slice(0, 8)}. Settlement details will be sent to your email (${user.email}).`,
-      });
-    }
+    navigate(`/payment?ref=${ref}`);
   };
 
   if (loading) {
@@ -79,23 +74,6 @@ export const MembershipPage: React.FC = () => {
           Explore and manage your active membership card status, privileges, and tier upgrade requests.
         </p>
       </div>
-
-      {statusMessage && (
-        <div
-          className={`p-4 rounded-xl border text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
-            statusMessage.type === 'success'
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              : 'bg-red-500/10 border-red-500/30 text-red-400'
-          }`}
-        >
-          {statusMessage.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-          ) : (
-            <AlertCircle className="w-4 h-4 shrink-0" />
-          )}
-          <span>{statusMessage.text}</span>
-        </div>
-      )}
 
       {/* Visual Digital Membership Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -159,11 +137,11 @@ export const MembershipPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSelectPlan(tier)}
-                  disabled={isCurrent || upgradingId === tier.id}
+                  disabled={isCurrent}
                   className={`w-full py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     isCurrent
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default'
-                      : 'bg-red-600 hover:bg-red-500 text-white shadow-lg disabled:opacity-50'
+                      : 'bg-red-600 hover:bg-red-500 text-white shadow-lg'
                   }`}
                 >
                   {isCurrent ? (
@@ -171,8 +149,6 @@ export const MembershipPage: React.FC = () => {
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       Active Membership
                     </>
-                  ) : upgradingId === tier.id ? (
-                    'Submitting...'
                   ) : (
                     <>
                       Request {tier.name} Upgrade

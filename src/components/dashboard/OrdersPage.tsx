@@ -1,18 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { ShoppingBag, Loader2, Send, CheckCircle2, ArrowRightLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingBag, ArrowRightLeft, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchUserDashboardData, type UserOrder } from '../../lib/dashboard';
-import { submitVehicleCashOutRequest } from '../../lib/paymentRequests';
+import { savePaymentRequestContext, generateReferenceId } from '../../lib/paymentContext';
+import { navigate } from '../../lib/navigation';
 
 export const OrdersPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [orders, setOrders] = useState<UserOrder[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Cash-Out Modal State
   const [selectedOrderForCashOut, setSelectedOrderForCashOut] = useState<UserOrder | null>(null);
-  const [cashOutAmount, setCashOutAmount] = useState<string>('');
+  const [cashOutAmount, setCashOutAmount] = useState<string>('5000');
   const [cashOutReason, setCashOutReason] = useState<string>('');
-  const [submittingCashOut, setSubmittingCashOut] = useState(false);
-  const [cashOutSuccessMsg, setCashOutSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -33,34 +34,32 @@ export const OrdersPage: React.FC = () => {
     setSelectedOrderForCashOut(order);
     setCashOutAmount(order.part_payment_amount.toString());
     setCashOutReason('');
-    setCashOutSuccessMsg(null);
   };
 
-  const handleConfirmCashOut = async (e: React.FormEvent) => {
+  const handleConfirmCashOut = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrderForCashOut || !user) return;
 
-    setSubmittingCashOut(true);
     const numAmount = parseFloat(cashOutAmount) || selectedOrderForCashOut.part_payment_amount;
+    const ref = generateReferenceId('cash_out');
+    const customerName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : undefined;
 
-    const result = await submitVehicleCashOutRequest({
-      orderId: selectedOrderForCashOut.id,
-      vehicleName: selectedOrderForCashOut.vehicle_name,
+    savePaymentRequestContext({
+      request_type: 'cash_out',
+      reference_id: ref,
+      order_id: selectedOrderForCashOut.id,
+      vehicle_name: selectedOrderForCashOut.vehicle_name,
+      item_name: `Cash-Out: ${selectedOrderForCashOut.vehicle_name}`,
       amount: numAmount,
+      currency: 'USD',
       reason: cashOutReason,
+      customer_name: customerName,
+      customer_email: user.email,
+      is_submitted: false,
     });
 
-    setSubmittingCashOut(false);
-
-    if (result.success) {
-      setCashOutSuccessMsg(`Cash-out request recorded (#${(result.referenceId || result.requestId || '').slice(0, 8)}). Our finance team will contact you via your registered email (${user.email}).`);
-      setTimeout(() => {
-        setSelectedOrderForCashOut(null);
-        setCashOutSuccessMsg(null);
-      }, 4000);
-    } else {
-      alert(result.message || 'Unable to submit cash-out request right now.');
-    }
+    setSelectedOrderForCashOut(null);
+    navigate(`/payment?ref=${ref}`);
   };
 
   if (loading) {
@@ -154,77 +153,56 @@ export const OrdersPage: React.FC = () => {
               <span className="text-[10px] font-mono uppercase tracking-widest text-red-400">Vehicle Cash-Out Request</span>
               <h3 className="text-xl font-black text-white uppercase mt-1">{selectedOrderForCashOut.vehicle_name}</h3>
               <p className="text-xs text-white/50 font-light mt-1">
-                Submit a cash-out request for your reserved vehicle order. Our finance team will review and contact you via your registered email address.
+                Submit a cash-out request for your reserved vehicle order and proceed to the Payment Page.
               </p>
             </div>
 
-            {cashOutSuccessMsg ? (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 space-y-2">
-                <div className="flex items-center gap-2 font-bold uppercase">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Request Submitted
-                </div>
-                <p className="text-emerald-300/80 font-light leading-relaxed">{cashOutSuccessMsg}</p>
+            <form onSubmit={handleConfirmCashOut} className="space-y-4">
+              <div>
+                <label htmlFor="cashOutAmountInput" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1">
+                  Requested Cash-Out Amount (USD)
+                </label>
+                <input
+                  id="cashOutAmountInput"
+                  type="number"
+                  required
+                  value={cashOutAmount}
+                  onChange={(e) => setCashOutAmount(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-red-500"
+                />
               </div>
-            ) : (
-              <form onSubmit={handleConfirmCashOut} className="space-y-4">
-                <div>
-                  <label htmlFor="cashOutAmountInput" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1">
-                    Requested Cash-Out Amount (USD)
-                  </label>
-                  <input
-                    id="cashOutAmountInput"
-                    type="number"
-                    required
-                    value={cashOutAmount}
-                    onChange={(e) => setCashOutAmount(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-red-500"
-                  />
-                </div>
 
-                <div>
-                  <label htmlFor="cashOutReasonInput" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1">
-                    Reason / Payout Preference (Optional)
-                  </label>
-                  <textarea
-                    id="cashOutReasonInput"
-                    rows={3}
-                    placeholder="Provide preferred bank wire details or payout currency notes..."
-                    value={cashOutReason}
-                    onChange={(e) => setCashOutReason(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-red-500"
-                  />
-                </div>
+              <div>
+                <label htmlFor="cashOutReasonInput" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1">
+                  Reason / Payout Preference (Optional)
+                </label>
+                <textarea
+                  id="cashOutReasonInput"
+                  rows={3}
+                  placeholder="Provide preferred bank wire details or payout currency notes..."
+                  value={cashOutReason}
+                  onChange={(e) => setCashOutReason(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:border-red-500"
+                />
+              </div>
 
-                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/10 text-[11px] text-white/50 leading-relaxed">
-                  Notice: Submitting a cash-out request creates a persistent record for administrative review. You will be contacted at <strong>{user?.email}</strong> with next steps.
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedOrderForCashOut(null)}
-                    className="flex-1 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingCashOut}
-                    className="flex-1 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {submittingCashOut ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Send className="w-3.5 h-3.5" />
-                        Submit Cash-Out Request
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderForCashOut(null)}
+                  className="flex-1 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Proceed to Payment</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

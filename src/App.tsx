@@ -8,6 +8,7 @@ import { ShopPage } from './components/ShopPage';
 import { HowItWorksPage } from './components/HowItWorksPage';
 import { SignupPage } from './components/SignupPage';
 import { LoginPage } from './components/LoginPage';
+import { PaymentPage } from './components/PaymentPage';
 import { Footer } from './components/Footer';
 import { navigate } from './lib/navigation';
 
@@ -47,6 +48,7 @@ export function AppContent() {
     currentPath.startsWith('/ai');
   const isShopRoute = currentPath.startsWith('/shop');
   const isMembershipRoute = currentPath === '/membership' || currentPath.startsWith('/membership');
+  const isPaymentRoute = currentPath === '/payment' || currentPath.startsWith('/payment');
 
   // Redirect authenticated user away from login/signup routes
   useEffect(() => {
@@ -54,6 +56,33 @@ export function AppContent() {
       navigate('/dashboard');
     }
   }, [user, isLoading, isSignupRoute, isInvestLoginRoute]);
+
+  // General standalone /payment route
+  if (isPaymentRoute) {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+          <Loader2 className="w-8 h-8 text-red-500 animate-spin mb-3" />
+          <p className="text-xs font-mono uppercase tracking-widest text-white/50">Loading Payment Gateway...</p>
+        </div>
+      );
+    }
+
+    if (!user) {
+      navigate(`/invest/login?redirect=${encodeURIComponent(currentPath)}`);
+      return null;
+    }
+
+    return (
+      <div className="relative w-full max-w-[100vw] overflow-x-hidden flex flex-col min-h-screen bg-[#030304] text-white">
+        <Navbar />
+        <div className="flex-1">
+          <PaymentPage />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   // Dashboard route check
   const isDashboardRoute = currentPath.startsWith('/dashboard');
@@ -78,7 +107,10 @@ export function AppContent() {
     let activeTab = 'overview';
     let content = <DashboardOverview />;
 
-    if (currentPath.startsWith('/dashboard/deposit')) {
+    if (currentPath.startsWith('/dashboard/payment')) {
+      activeTab = 'payment';
+      content = <PaymentPage />;
+    } else if (currentPath.startsWith('/dashboard/deposit')) {
       activeTab = 'deposit';
       content = <DepositPage />;
     } else if (currentPath.startsWith('/dashboard/withdrawal')) {

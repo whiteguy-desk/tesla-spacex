@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Loader2, CheckCircle, X, Shield, Zap, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Shield, ArrowRight } from 'lucide-react';
 import { fetchVehicles, type Vehicle } from '../lib/vehicles';
 import { useAuth } from '../hooks/useAuth';
-import { submitVehiclePurchaseRequest } from '../lib/paymentRequests';
+import { savePaymentRequestContext, generateReferenceId } from '../lib/paymentContext';
+import { navigate } from '../lib/navigation';
 import { PageTransition, Reveal, StaggerContainer, MotionCard } from './MotionSystem';
 
 export interface ShopPageProps {
@@ -13,19 +14,8 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
-  const [orderingState, setOrderingState] = useState<{ id: string; mode: 'full' | 'part' } | null>(null);
 
-  // Success Modal state
-  const [successModalData, setSuccessModalData] = useState<{
-    referenceId: string;
-    vehicleName: string;
-    paymentOption: 'full' | 'part';
-    fullPrice: number;
-    partPayment: number;
-    balance: number;
-  } | null>(null);
-
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -50,169 +40,102 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
     setCurrentSlideIndex((prev) => (prev === vehicles.length - 1 ? 0 : prev + 1));
   };
 
-  const handleOrder = async (vehicle: Vehicle, paymentOption: 'full' | 'part', e: React.MouseEvent) => {
+  const handleOrder = (vehicle: Vehicle, paymentOption: 'full' | 'part', e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) {
-      window.location.href = '/invest/login';
+      navigate('/invest/login?redirect=/shop');
       return;
     }
 
-    setOrderingState({ id: vehicle.id, mode: paymentOption });
-
+    const ref = generateReferenceId('vehicle_purchase');
     const partPay = vehicle.part_payment_amount || 5000;
-    const result = await submitVehiclePurchaseRequest({
-      vehicleId: vehicle.id,
-      vehicleName: vehicle.name,
-      paymentOption,
-      fullPrice: vehicle.full_price,
-      partPaymentAmount: partPay,
+    const isFull = paymentOption === 'full';
+    const amount = isFull ? vehicle.full_price : partPay;
+    const customerName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : undefined;
+
+    savePaymentRequestContext({
+      request_type: 'vehicle_purchase',
+      reference_id: ref,
+      vehicle_id: vehicle.id,
+      vehicle_name: vehicle.name,
+      item_name: vehicle.name,
+      payment_option: paymentOption,
+      full_price: vehicle.full_price,
+      part_payment_amount: partPay,
       quantity: 1,
+      amount,
+      currency: 'USD',
+      customer_name: customerName,
+      customer_email: user.email,
+      is_submitted: false,
     });
 
-    setOrderingState(null);
-
-    if (!result.success) {
-      alert(result.message || 'Unable to submit vehicle order request. Please try again.');
-      return;
-    }
-
-    const refId = result.referenceId || result.requestId || `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-
-    const balance = paymentOption === 'full' ? 0 : Math.max(0, vehicle.full_price - partPay);
-
-    setSuccessModalData({
-      referenceId: refId,
-      vehicleName: vehicle.name,
-      paymentOption,
-      fullPrice: vehicle.full_price,
-      partPayment: paymentOption === 'full' ? vehicle.full_price : partPay,
-      balance,
-    });
+    navigate(`/payment?ref=${ref}`);
   };
 
   if (loading) {
     return (
-      <div className="bg-[#030304] text-white min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-red-500" />
-          <p className="text-xs uppercase tracking-widest font-mono text-white/50">Loading Vehicles Catalog...</p>
-        </div>
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-red-500 animate-spin mb-4" />
+        <p className="text-xs uppercase font-mono tracking-widest text-white/50">Loading Vehicle Showroom...</p>
+      </div>
+    );
+  }
+
+  if (vehicles.length === 0) {
+    return (
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
+        <h2 className="text-2xl font-bold uppercase mb-2">No Vehicles Found</h2>
+        <p className="text-xs text-white/50 mb-6">Unable to load vehicle telemetry at this time.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-6 py-2.5 rounded-full bg-red-600 text-white text-xs font-bold uppercase tracking-wider"
+        >
+          Retry
+        </button>
       </div>
     );
   }
 
   return (
-    <PageTransition className="bg-[#030304] text-[#f4f4f6] min-h-screen selection:bg-red-600/30 selection:text-white">
-      <main className="w-full min-h-screen pb-24">
-        {/* IN-APP SUCCESS MODAL */}
-        {successModalData && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-            <div className="bg-[#08080a] text-white border border-white/15 rounded-2xl p-6 sm:p-10 max-w-lg w-full space-y-6 shadow-2xl relative">
-              <button
-                type="button"
-                onClick={() => setSuccessModalData(null)}
-                className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto">
-                <CheckCircle className="w-10 h-10 text-emerald-400" />
-              </div>
-
-              <div className="text-center space-y-2">
-                <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase tracking-widest font-mono">
-                  Status: Pending Review
-                </span>
-                <h2 className="text-2xl font-black uppercase tracking-tight text-white">Vehicle Order Request Received</h2>
-                <p className="text-xs text-white/70 max-w-sm mx-auto leading-relaxed">
-                  Your reservation request for <strong>{successModalData.vehicleName}</strong> has been registered.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-left space-y-2 max-w-sm mx-auto font-mono text-xs">
-                <div className="flex justify-between">
-                  <span className="text-white/40 uppercase text-[10px]">Reference:</span>
-                  <span className="text-emerald-400 font-bold">{successModalData.referenceId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40 uppercase text-[10px]">Order Choice:</span>
-                  <span className="text-red-400 font-bold uppercase text-[10px]">
-                    {successModalData.paymentOption === 'full' ? 'Pay In Full' : 'Part Payment'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40 uppercase text-[10px]">Full Vehicle Price:</span>
-                  <span className="text-white/80">${successModalData.fullPrice.toLocaleString()} USD</span>
-                </div>
-                {successModalData.paymentOption === 'part' && (
-                  <div className="flex justify-between">
-                    <span className="text-white/40 uppercase text-[10px]">Initial Part Payment:</span>
-                    <span className="text-emerald-400 font-bold">${successModalData.partPayment.toLocaleString()} USD</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-white/40 uppercase text-[10px]">Remaining Balance:</span>
-                  <span className="text-white/80">${successModalData.balance.toLocaleString()} USD</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-white/10">
-                  <span className="text-white/40 uppercase text-[10px]">Registered Email:</span>
-                  <span className="text-white/80 truncate max-w-[160px]">{user?.email}</span>
-                </div>
-              </div>
-
-              <p className="text-xs text-white/50 text-center leading-relaxed max-w-sm mx-auto">
-                Our team will review your request and contact you directly at <strong>{user?.email}</strong> with settlement instructions and delivery allocation schedule.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <a
-                  href="/dashboard/orders"
-                  className="flex-1 py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider text-center transition-colors shadow-lg"
-                >
-                  View My Orders
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setSuccessModalData(null)}
-                  className="flex-1 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider text-center transition-colors border border-white/10 cursor-pointer"
-                >
-                  Continue Catalog
-                </button>
-              </div>
-            </div>
+    <PageTransition className="min-h-screen bg-black text-white overflow-x-hidden font-sans">
+      <main className="w-full">
+        {/* HERO CAROUSEL SHOWROOM */}
+        <section className="relative w-full h-[90vh] min-h-[600px] max-h-[900px] overflow-hidden bg-black group">
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-out scale-105"
+            style={{ backgroundImage: `url(${activeVehicle.image_url})` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/30"></div>
           </div>
-        )}
 
-        {/* HERO CAROUSEL SECTION */}
-        {activeVehicle && (
-          <section className="relative h-screen w-full flex flex-col items-center justify-between overflow-hidden group bg-[#030304]">
-            <div className="absolute inset-0 w-full h-full select-none" draggable={false}>
-              <div
-                key={activeVehicle.id}
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 ease-out scale-105 group-hover:scale-100"
-                style={{ backgroundImage: `url(${activeVehicle.image_url})` }}
-              ></div>
-              <div className="absolute inset-0 bg-gradient-to-t from-[#030304] via-[#030304]/50 to-black/60 pointer-events-none"></div>
+          <div className="relative z-10 max-w-[1800px] mx-auto h-full flex flex-col justify-between p-6 sm:p-12">
+            <div className="pt-20">
+              <Reveal>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[10px] font-mono font-bold uppercase tracking-widest text-white mb-4">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                  Tesla Vehicle Fleet
+                </div>
+              </Reveal>
             </div>
 
-            <div className="relative z-10 w-full flex flex-col items-center justify-start pt-28 sm:pt-36 pointer-events-none px-4">
-              <Reveal direction="down">
-                <div className="text-center max-w-3xl mx-auto">
-                  <span className="px-3.5 py-1.5 rounded-full bg-red-600/20 text-red-400 border border-red-500/30 text-[10px] font-mono font-bold uppercase tracking-widest inline-flex items-center gap-1.5 mb-3 backdrop-blur-md">
-                    <Zap className="w-3.5 h-3.5 text-red-500" />
-                    Featured Electric Platform
+            <div className="max-w-3xl pb-16 sm:pb-24">
+              <Reveal>
+                <div className="space-y-4">
+                  <span className="text-xs sm:text-sm font-mono text-red-500 uppercase tracking-[0.2em] font-bold block">
+                    {activeVehicle.type || 'Electric Platform'}
                   </span>
-                  <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight drop-shadow-lg font-sans uppercase">
+
+                  <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tighter text-white uppercase font-sans leading-[0.9]">
                     {activeVehicle.name}
                   </h1>
-                  <p className="text-sm sm:text-base text-white/80 mt-3 font-light tracking-wide max-w-xl mx-auto leading-relaxed drop-shadow-md">
+
+                  <p className="text-sm sm:text-base text-white/80 max-w-xl font-light leading-relaxed">
                     {activeVehicle.description}
                   </p>
 
-                  <div className="mt-6 max-w-lg mx-auto p-4 rounded-2xl bg-[#08080a]/90 backdrop-blur-md border border-white/15 text-white shadow-2xl">
-                    <div className="grid grid-cols-3 gap-2 text-center font-mono">
+                  <div className="pt-2">
+                    <div className="inline-grid grid-cols-3 gap-4 sm:gap-8 p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 font-mono text-xs text-center">
                       <div>
                         <span className="text-white/40 text-[9px] uppercase tracking-wider block">Vehicle Price</span>
                         <span className="font-bold text-white text-sm sm:text-base">${activeVehicle.full_price.toLocaleString()}</span>
@@ -236,23 +159,17 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
                 <button
                   type="button"
                   onClick={(e) => handleOrder(activeVehicle, 'full', e)}
-                  disabled={orderingState?.id === activeVehicle.id}
-                  className="w-full sm:w-1/2 text-center bg-white text-black hover:bg-white/90 text-xs font-bold tracking-wider uppercase px-6 py-3.5 rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-1/2 text-center bg-white text-black hover:bg-white/90 text-xs font-bold tracking-wider uppercase px-6 py-3.5 rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-xl cursor-pointer"
                 >
-                  {orderingState?.id === activeVehicle.id && orderingState.mode === 'full'
-                    ? 'Submitting...'
-                    : `Order Full Price ($${activeVehicle.full_price.toLocaleString()})`}
+                  Order Full Price (${activeVehicle.full_price.toLocaleString()})
                 </button>
 
                 <button
                   type="button"
                   onClick={(e) => handleOrder(activeVehicle, 'part', e)}
-                  disabled={orderingState?.id === activeVehicle.id}
-                  className="w-full sm:w-1/2 text-center bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-wider uppercase px-6 py-3.5 rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-2xl cursor-pointer disabled:opacity-50 border border-red-400/40"
+                  className="w-full sm:w-1/2 text-center bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-wider uppercase px-6 py-3.5 rounded-full hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-2xl cursor-pointer border border-red-400/40"
                 >
-                  {orderingState?.id === activeVehicle.id && orderingState.mode === 'part'
-                    ? 'Submitting...'
-                    : `Request Part Payment ($${(activeVehicle.part_payment_amount || 5000).toLocaleString()})`}
+                  Request Part Payment (${(activeVehicle.part_payment_amount || 5000).toLocaleString()})
                 </button>
               </div>
 
@@ -271,31 +188,12 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
               >
                 <ChevronRight className="w-6 h-6" />
               </button>
-
-              {/* Slide Indicators */}
-              <div className="flex gap-2">
-                {vehicles.map((v, idx) => {
-                  const isActive = idx === currentSlideIndex;
-                  return (
-                    <button
-                      key={v.id}
-                      onClick={() => setCurrentSlideIndex(idx)}
-                      className={`relative h-1.5 rounded-full flex-shrink-0 overflow-hidden transition-all duration-300 cursor-pointer ${
-                        isActive ? 'w-16 bg-red-500/40' : 'w-3 bg-white/30 hover:bg-white/60'
-                      }`}
-                      aria-label={`Go to slide ${idx + 1}`}
-                    >
-                      {isActive && <div className="absolute inset-y-0 left-0 bg-red-500 w-full"></div>}
-                    </button>
-                  );
-                })}
-              </div>
             </div>
-          </section>
-        )}
+          </div>
+        </section>
 
-        {/* VEHICLES CATALOG GRID SECTION */}
-        <section id="vehicles" className="py-24 sm:py-32 w-full mx-auto bg-[#030304]">
+        {/* VEHICLE CATALOG GRID */}
+        <section className="py-24 bg-[#030304] text-white">
           <div className="max-w-[1800px] mx-auto px-6 sm:px-10">
             <Reveal>
               <div className="mb-16 text-center sm:text-left">
@@ -393,23 +291,17 @@ export const ShopPage: React.FC<ShopPageProps> = () => {
                             <button
                               type="button"
                               onClick={(e) => handleOrder(vehicle, 'full', e)}
-                              disabled={orderingState?.id === vehicle.id}
-                              className="flex-1 text-center text-xs font-bold tracking-wider uppercase py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all cursor-pointer disabled:opacity-50"
+                              className="flex-1 text-center text-xs font-bold tracking-wider uppercase py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/15 transition-all cursor-pointer"
                             >
-                              {orderingState?.id === vehicle.id && orderingState.mode === 'full'
-                                ? 'Submitting...'
-                                : 'Pay In Full'}
+                              Pay In Full
                             </button>
 
                             <button
                               type="button"
                               onClick={(e) => handleOrder(vehicle, 'part', e)}
-                              disabled={orderingState?.id === vehicle.id}
-                              className="flex-1 text-center text-xs font-bold tracking-wider uppercase py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg transition-all cursor-pointer disabled:opacity-50"
+                              className="flex-1 text-center text-xs font-bold tracking-wider uppercase py-3.5 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg transition-all cursor-pointer"
                             >
-                              {orderingState?.id === vehicle.id && orderingState.mode === 'part'
-                                ? 'Submitting...'
-                                : `Part Payment ($${(vehicle.part_payment_amount || 5000).toLocaleString()})`}
+                              Part Payment (${(vehicle.part_payment_amount || 5000).toLocaleString()})
                             </button>
                           </div>
                         </div>

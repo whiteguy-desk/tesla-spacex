@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { ChevronRight, Loader2, AlertCircle, FolderOpen, CheckCircle, X, Send } from 'lucide-react';
+import { ChevronRight, Loader2, AlertCircle, FolderOpen, X, ArrowRight } from 'lucide-react';
 import { fetchProjects as loadProjects, type Project } from '../lib/projects';
 import { AuthContext } from '../context/AuthContext';
-import { submitInvestmentRequest } from '../lib/paymentRequests';
+import { savePaymentRequestContext, generateReferenceId } from '../lib/paymentContext';
+import { navigate } from '../lib/navigation';
 
 export interface ProjectItem {
   id: string;
@@ -38,138 +39,115 @@ const getCategoryStyles = (category: string | null) => {
       tag: category || 'xAI',
       tagBg: '#1a1a2e30',
       tagColor: '#818cf8',
-      tagBorder: '#1a1a2e50',
-      radialColor: '#1a1a2e60',
+      tagBorder: '#818cf850',
+      radialColor: '#818cf860',
       accentColor: '#818cf8',
     };
   }
-  if (cat.includes('tesla')) {
-    return {
-      tag: category || 'Tesla',
-      tagBg: '#CC000030',
-      tagColor: '#CC0000',
-      tagBorder: '#CC000050',
-      radialColor: '#CC000060',
-      accentColor: '#CC0000',
-    };
-  }
-  if (cat.includes('spacex') || cat.includes('space')) {
+  if (cat.includes('spacex') || cat.includes('aerospace')) {
     return {
       tag: category || 'SpaceX',
-      tagBg: '#0047AB30',
-      tagColor: '#3b82f6',
-      tagBorder: '#0047AB50',
-      radialColor: '#0047AB60',
-      accentColor: '#3b82f6',
+      tagBg: '#0284c730',
+      tagColor: '#38bdf8',
+      tagBorder: '#38bdf850',
+      radialColor: '#38bdf860',
+      accentColor: '#38bdf8',
     };
   }
-  if (cat.includes('boring')) {
-    return {
-      tag: category || 'The Boring Company',
-      tagBg: '#E05A0030',
-      tagColor: '#E05A00',
-      tagBorder: '#E05A0050',
-      radialColor: '#E05A0060',
-      accentColor: '#E05A00',
-    };
-  }
-  if (cat.includes('neuralink')) {
+  if (cat.includes('neuralink') || cat.includes('neuro')) {
     return {
       tag: category || 'Neuralink',
-      tagBg: '#4B008230',
-      tagColor: '#a855f7',
-      tagBorder: '#4B008250',
-      radialColor: '#4B008260',
-      accentColor: '#a855f7',
+      tagBg: '#7c3aed30',
+      tagColor: '#a78bfa',
+      tagBorder: '#a78bfa50',
+      radialColor: '#a78bfa60',
+      accentColor: '#a78bfa',
+    };
+  }
+  if (cat.includes('boring') || cat.includes('transit')) {
+    return {
+      tag: category || 'Boring Co.',
+      tagBg: '#ea580c30',
+      tagColor: '#fb923c',
+      tagBorder: '#fb923c50',
+      radialColor: '#fb923c60',
+      accentColor: '#fb923c',
     };
   }
   return {
-    tag: category || 'Project',
-    tagBg: 'rgba(255, 255, 255, 0.1)',
-    tagColor: '#3b82f6',
-    tagBorder: 'rgba(255, 255, 255, 0.2)',
-    radialColor: 'rgba(59, 130, 246, 0.3)',
-    accentColor: '#3b82f6',
+    tag: category || 'Tesla',
+    tagBg: '#e8212730',
+    tagColor: '#f87171',
+    tagBorder: '#f8717150',
+    radialColor: '#e8212760',
+    accentColor: '#e82127',
   };
 };
 
-const formatTargetAmount = (amount: number | null): string | null => {
-  if (amount == null) return null;
-  if (amount >= 1_000_000_000) {
-    return `$${(amount / 1_000_000_000).toFixed(1)}B`;
-  }
-  if (amount >= 1_000_000) {
-    return `$${(amount / 1_000_000).toFixed(1)}M`;
-  }
-  if (amount >= 1_000) {
-    return `$${(amount / 1_000).toFixed(0)}K`;
-  }
-  return `$${amount}`;
-};
-
 export const ProjectsPage: React.FC = () => {
-  const authContext = useContext(AuthContext);
-  const user = authContext?.user || null;
+  const auth = useContext(AuthContext);
+  const user = auth?.user;
 
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
-  // Investment Request Modal state
+  // Modal State
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
   const [investAmount, setInvestAmount] = useState<string>('2500');
-  const [submittingInvest, setSubmittingInvest] = useState<boolean>(false);
-  const [investSuccessMsg, setInvestSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    const fetchProjects = async () => {
-      setLoading(true);
-      setError(null);
+    async function getProjects() {
       try {
-        const rawData = await loadProjects();
+        setLoading(true);
+        setError(null);
 
-        if (isMounted) {
-          const mapped: ProjectItem[] = (rawData as Project[]).map((db) => {
-            const style = getCategoryStyles(db.category);
-            return {
-              id: db.id,
-              slug: db.slug || db.id,
-              title: db.name,
-              tag: style.tag,
-              tagBg: style.tagBg,
-              tagColor: style.tagColor,
-              tagBorder: style.tagBorder,
-              radialColor: style.radialColor,
-              accentColor: style.accentColor,
-              status: db.status || 'Open',
-              imageUrl: db.image_url || '',
-              description: db.description || 'Details available upon request.',
-              displayMetric: db.display_metric || null,
-              targetAmount: formatTargetAmount(db.target_amount),
-            };
-          });
-          setProjects(mapped);
-        }
+        const data: Project[] = await loadProjects();
+
+        if (!isMounted) return;
+
+        const formattedProjects: ProjectItem[] = data.map((p) => {
+          const styles = getCategoryStyles(p.category);
+          return {
+            id: p.id,
+            slug: p.slug,
+            title: p.name,
+            tag: styles.tag,
+            tagBg: styles.tagBg,
+            tagColor: styles.tagColor,
+            tagBorder: styles.tagBorder,
+            radialColor: styles.radialColor,
+            accentColor: styles.accentColor,
+            status: p.status === 'Open' ? 'Open for Allocation' : p.status || 'Active',
+            imageUrl: p.image_url,
+            description: p.description,
+            displayMetric: p.display_metric,
+            targetAmount: p.target_amount ? `$${(p.target_amount / 1000000).toFixed(0)}M Target` : null,
+          };
+        });
+
+        setProjects(formattedProjects);
       } catch (err: any) {
-        if (isMounted) {
-          console.error('Error fetching projects:', err);
-          setError(err?.message || 'Failed to load projects. Please try again later.');
-        }
+        if (!isMounted) return;
+        console.error('Error in ProjectsPage component:', err);
+        setError(err.message || 'An error occurred while loading projects.');
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
-    };
+    }
 
-    fetchProjects();
+    getProjects();
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  const openProjectsCount = projects.filter(
+    (p) => p.status.toLowerCase().includes('open') || p.status.toLowerCase().includes('active')
+  ).length;
 
   const handleImageError = (id: string) => {
     setFailedImages((prev) => ({ ...prev, [id]: true }));
@@ -179,148 +157,41 @@ export const ProjectsPage: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      window.location.href = '/invest/login';
+      navigate('/invest/login?redirect=/projects');
       return;
     }
     setSelectedProject(project);
     setInvestAmount('2500');
-    setInvestSuccessMsg(null);
   };
 
-  const handleConfirmInvestRequest = async (e: React.FormEvent) => {
+  const handleConfirmInvestRequest = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject || !user) return;
 
-    setSubmittingInvest(true);
     const numAmount = parseFloat(investAmount) || 2500;
+    const ref = generateReferenceId('investment');
 
-    const result = await submitInvestmentRequest({
-      projectId: selectedProject.id,
-      projectName: selectedProject.title,
+    savePaymentRequestContext({
+      request_type: 'investment',
+      reference_id: ref,
+      project_id: selectedProject.id,
+      project_name: selectedProject.title,
+      item_name: selectedProject.title,
       amount: numAmount,
       currency: 'USD',
+      customer_email: user.email,
+      is_submitted: false,
     });
 
-    setSubmittingInvest(false);
-
-    if (!result.success) {
-      alert(result.message || 'Error submitting investment request.');
-      return;
-    }
-
-    setInvestSuccessMsg(
-      `Investment request submitted (#${(result.referenceId || result.requestId || '').slice(0, 8)}). Status: Pending Review. Settlement details will be sent to ${user.email}.`
-    );
-
-    setTimeout(() => {
-      setSelectedProject(null);
-      setInvestSuccessMsg(null);
-    }, 4000);
+    setSelectedProject(null);
+    navigate(`/payment?ref=${ref}`);
   };
 
-  const openProjectsCount = projects.filter(
-    (p) => p.status.toLowerCase() === 'open' || p.status.toLowerCase() === 'active'
-  ).length;
-
   return (
-    <main className="min-h-screen bg-black text-white">
-      {/* Investment Modal */}
-      {selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-zinc-950 border border-white/15 rounded-2xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl relative">
-            <button
-              type="button"
-              onClick={() => setSelectedProject(null)}
-              className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-widest text-red-500">
-                Investment Opportunity Request
-              </span>
-              <h3 className="text-xl font-black text-white uppercase mt-1">{selectedProject.title}</h3>
-              <p className="text-xs text-white/50 font-light mt-1">
-                Demo Investment Opportunity — Submit a request for allocation details and settlement parameters.
-              </p>
-            </div>
-
-            {investSuccessMsg ? (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 space-y-2">
-                <div className="flex items-center gap-2 font-bold uppercase">
-                  <CheckCircle className="w-4 h-4" />
-                  Request Received
-                </div>
-                <p className="text-emerald-300/80 font-light leading-relaxed">{investSuccessMsg}</p>
-              </div>
-            ) : (
-              <form onSubmit={handleConfirmInvestRequest} className="space-y-4">
-                <div>
-                  <label htmlFor="investAmountInput" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1">
-                    Requested Investment Amount (USD)
-                  </label>
-                  <input
-                    id="investAmountInput"
-                    type="number"
-                    min="1000"
-                    step="500"
-                    required
-                    value={investAmount}
-                    onChange={(e) => setInvestAmount(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-red-500"
-                  />
-                  <p className="text-[10px] text-white/40 mt-1">Minimum entry: $1,000</p>
-                </div>
-
-                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/10 text-[11px] text-white/50 leading-relaxed">
-                  Notice: Submitting an investment request creates a persistent request record for review. Allocation details will be sent directly to <strong>{user?.email}</strong>.
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedProject(null)}
-                    className="flex-1 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingInvest}
-                    className="flex-1 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {submittingInvest ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Send className="w-3.5 h-3.5" />
-                        Submit Request
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Hero Section */}
-      <div className="relative overflow-hidden pt-32 pb-20 px-6 sm:px-10 lg:px-16">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[600px] h-[400px] rounded-full bg-blue-600/10 blur-[120px]"></div>
-          <div className="absolute top-0 right-1/4 w-[500px] h-[350px] rounded-full bg-orange-500/10 blur-[100px]"></div>
-        </div>
-        <div
-          className="absolute inset-0 opacity-[0.025] pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-            backgroundSize: '80px 80px',
-          }}
-        ></div>
-
+    <main className="min-h-screen bg-[#030304] text-white pt-24 font-sans selection:bg-red-500 selection:text-white">
+      {/* Header / Hero Section */}
+      <div className="relative max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 pt-12 pb-16">
+        <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-red-600/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div className="relative max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-8 h-px bg-white/20"></div>
@@ -336,7 +207,7 @@ export const ProjectsPage: React.FC = () => {
           </h1>
 
           <p className="text-base sm:text-lg text-white/40 leading-relaxed max-w-xl">
-            Direct exposure to the world's most consequential private companies. Tiered entry, transparent yield structure, no lock-up minimums.
+            Direct exposure to technology platforms. Tiered entry, transparent yield structure, no lock-up minimums.
           </p>
 
           <div className="flex flex-wrap items-center gap-8 mt-10 pt-8 border-t border-white/[0.06]">
@@ -354,16 +225,11 @@ export const ProjectsPage: React.FC = () => {
               <p className="text-2xl font-bold text-white">$1K</p>
               <p className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5">Min. Entry</p>
             </div>
-            <div className="w-px h-8 bg-white/10"></div>
-            <div>
-              <p className="text-2xl font-bold text-white">120%+</p>
-              <p className="text-[10px] text-white/30 uppercase tracking-wider mt-0.5">Max Projected Yield</p>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Projects Grid / State Handling Section */}
+      {/* Projects Grid Section */}
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 pb-24">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -388,7 +254,7 @@ export const ProjectsPage: React.FC = () => {
             <FolderOpen className="w-12 h-12 text-white/20 mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">No Projects Available</h3>
             <p className="text-xs text-white/40 max-w-md leading-relaxed">
-              There are currently no active investment opportunities listed. Please check back soon or explore our platform guide.
+              There are currently no active investment opportunities listed.
             </p>
           </div>
         ) : (
@@ -401,7 +267,7 @@ export const ProjectsPage: React.FC = () => {
                   key={project.id}
                   className="group relative rounded-2xl overflow-hidden border border-white/[0.07] hover:border-white/[0.15] transition-all duration-500 bg-[#0a0a0a]"
                 >
-                  <div className="block">
+                  <div>
                     <div className="relative h-72 sm:h-80 overflow-hidden bg-zinc-900">
                       {!isImageFailed ? (
                         <img
@@ -420,12 +286,6 @@ export const ProjectsPage: React.FC = () => {
                       )}
 
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-                      <div
-                        className="absolute inset-0 opacity-20 pointer-events-none"
-                        style={{
-                          background: `radial-gradient(circle at top right, ${project.radialColor} 0%, transparent 60%)`,
-                        }}
-                      ></div>
 
                       <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
                         <span
@@ -478,11 +338,11 @@ export const ProjectsPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={(e) => handleOpenInvestModal(project, e)}
-                          className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition-all duration-300 group-hover:gap-2.5 cursor-pointer"
+                          className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] transition-all duration-300 cursor-pointer"
                           style={{ color: project.accentColor }}
                         >
                           Invest Now
-                          <ChevronRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+                          <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -492,11 +352,67 @@ export const ProjectsPage: React.FC = () => {
             })}
           </div>
         )}
-
-        <p className="mt-16 text-[11px] text-white/15 text-center max-w-2xl mx-auto leading-relaxed">
-          All investment opportunities involve risk, including the possible loss of principal. Past performance does not guarantee future returns. Projected yields are estimates only and are not guaranteed. Tesla Inc is not a registered broker-dealer or investment adviser.
-        </p>
       </div>
+
+      {/* Investment Request Modal */}
+      {selectedProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-zinc-950 border border-white/15 rounded-2xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={() => setSelectedProject(null)}
+              className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-red-400">Project Allocation Request</span>
+              <h3 className="text-xl font-black text-white uppercase mt-1">{selectedProject.title}</h3>
+              <p className="text-xs text-white/50 font-light mt-1">
+                Enter your requested allocation amount and proceed to the Payment Page.
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmInvestRequest} className="space-y-4">
+              <div>
+                <label htmlFor="investAmountInput" className="block text-xs font-bold uppercase tracking-wider text-white/60 mb-1">
+                  Requested Investment Amount (USD)
+                </label>
+                <input
+                  id="investAmountInput"
+                  type="number"
+                  min="1000"
+                  step="500"
+                  required
+                  value={investAmount}
+                  onChange={(e) => setInvestAmount(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-red-500"
+                />
+                <p className="text-[10px] text-white/40 mt-1">Minimum entry: $1,000</p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedProject(null)}
+                  className="flex-1 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-full bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider transition-colors shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Proceed to Payment</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 };
