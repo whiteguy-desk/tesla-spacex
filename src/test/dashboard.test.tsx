@@ -90,12 +90,12 @@ describe('Dashboard Layout & Components', () => {
     });
   });
 
-  it('renders Quick Command Actions & Market Exposure telemetry section', async () => {
+  it('renders Vehicle Orders & Sector Exposure section', async () => {
     render(<DashboardOverview />);
 
     await waitFor(() => {
-      expect(screen.getByText('Market Exposure Telemetry')).toBeTruthy();
-      expect(screen.getByText('Sample Simulation Data')).toBeTruthy();
+      expect(screen.getByText('Vehicle Orders')).toBeTruthy();
+      expect(screen.getByText('Tesla Cybertruck Cyberbeast')).toBeTruthy();
       expect(screen.getByText('Deposit Funds')).toBeTruthy();
       expect(screen.getByText('Request Withdrawal')).toBeTruthy();
     });

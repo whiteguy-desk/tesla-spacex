@@ -10,6 +10,8 @@ import {
   Loader2,
   BarChart3,
   ExternalLink,
+  ShoppingBag,
+  Car,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { fetchUserDashboardData, type UserDashboardData } from '../../lib/dashboard';
@@ -47,15 +49,17 @@ export const DashboardOverview: React.FC = () => {
     ? data.activePlanId.toUpperCase()
     : 'No Active Plan';
 
+  const orders = data?.orders || [];
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-sans text-white">
       {/* Top Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight uppercase">
           Account <span className="text-white/40">Overview</span>
         </h1>
         <p className="text-xs text-white/50 font-light mt-1">
-          Real-time account balance, active project stakes, and market exposure.
+          Real-time account balance, vehicle reservations, and portfolio orders.
         </p>
       </div>
 
@@ -151,15 +155,85 @@ export const DashboardOverview: React.FC = () => {
         </div>
       </div>
 
+      {/* ACTIVE VEHICLE ORDERS SECTION */}
+      <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-red-500" />
+            <h2 className="text-lg font-bold text-white tracking-tight uppercase">Vehicle Orders</h2>
+          </div>
+          <a
+            href="/dashboard/orders"
+            className="text-xs font-bold text-red-400 hover:text-red-300 uppercase tracking-wider flex items-center gap-1"
+          >
+            View Orders <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+
+        {orders.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-white/70">
+              <thead className="text-[10px] uppercase font-mono text-white/40 bg-white/[0.02] border-b border-white/5">
+                <tr>
+                  <th className="py-3 px-4">Order Ref</th>
+                  <th className="py-3 px-4">Vehicle / Product</th>
+                  <th className="py-3 px-4">Full Price</th>
+                  <th className="py-3 px-4">Part Payment</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 font-mono">
+                {orders.map((ord) => (
+                  <tr key={ord.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-4 font-bold text-white/90">
+                      #{ord.id.slice(0, 8)}
+                    </td>
+                    <td className="py-3 px-4 font-sans font-bold text-white flex items-center gap-2">
+                      <Car className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      {ord.vehicle_name}
+                    </td>
+                    <td className="py-3 px-4 text-white/80">
+                      ${ord.full_price.toLocaleString()} USD
+                    </td>
+                    <td className="py-3 px-4 text-emerald-400 font-bold">
+                      ${ord.part_payment_amount.toLocaleString()} USD
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-sans">
+                        {ord.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-white/40 text-[10px]">
+                      {new Date(ord.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-xs text-white/40 bg-white/[0.01] rounded-xl border border-white/5 space-y-2">
+            <p>No active vehicle orders recorded for your profile.</p>
+            <a
+              href="/shop"
+              className="inline-block px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-white text-[11px] font-bold uppercase tracking-wider transition-colors border border-white/10"
+            >
+              Browse Shop &amp; Reserve Vehicle
+            </a>
+          </div>
+        )}
+      </div>
+
       {/* Market Exposure Area */}
       <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-red-500" />
-            <h2 className="text-lg font-bold text-white tracking-tight">Market Exposure Telemetry</h2>
+            <h2 className="text-lg font-bold text-white tracking-tight">Portfolio Sector Exposure</h2>
           </div>
           <span className="text-[10px] font-mono uppercase tracking-widest text-white/30 bg-white/5 px-2.5 py-1 rounded-md">
-            Sample Simulation Data
+            Telemetry Allocation
           </span>
         </div>
         <p className="text-xs text-white/50 font-light leading-relaxed">

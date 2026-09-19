@@ -27,9 +27,9 @@ vi.mock('./lib/supabase', () => {
                     slug: 'spacex-starbase-infra',
                     name: 'Starbase Orbital Launch Hub Expansion',
                     category: 'Space',
-                    status: 'Demo Allocation Open',
-                    image_url: 'https://res.cloudinary.com/do2jdvxzh/image/upload/v1776248200/projects/spacex-space-city.jpg',
-                    description: 'Simulated Opportunity: Starship orbital launch tower expansion',
+                    status: 'Allocation Open',
+                    image_url: 'https://images.unsplash.com/photo-1517976487492-5750f3195933?auto=format&fit=crop&w=800&q=80',
+                    description: 'Starship orbital launch tower expansion',
                     target_amount: 250000000,
                     min_investment: 5000,
                     display_metric: 'Orbital Capacity Scale',
@@ -113,7 +113,7 @@ describe('Tesla & Spacex UI Components', () => {
         <InvestPage />
       </AuthProvider>
     );
-    expect(screen.getByText(/Institutional & Private Equity Portal/i)).toBeTruthy();
+    expect(screen.getByText(/Capital & Venture Direct Portal/i)).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: /Explore The Future/i })).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('Starbase Orbital Launch Hub Expansion')).toBeTruthy();
@@ -126,7 +126,7 @@ describe('Tesla & Spacex UI Components', () => {
         <ProjectsPage />
       </AuthProvider>
     );
-    expect(screen.getByText(/Demo Opportunities & Tech Simulations/i)).toBeTruthy();
+    expect(screen.getByText(/Technology Portfolio Initiatives/i)).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: /Project Discovery/i })).toBeTruthy();
 
     await waitFor(() => {
@@ -207,7 +207,7 @@ describe('Tesla & Spacex UI Components', () => {
     window.history.pushState({}, '', '/projects');
     render(<App />);
     expect(screen.getAllByText(/Tesla/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Demo Opportunities & Tech Simulations/i)).toBeTruthy();
+    expect(screen.getByText(/Technology Portfolio Initiatives/i)).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('Starbase Orbital Launch Hub Expansion')).toBeTruthy();
     });

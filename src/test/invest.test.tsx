@@ -30,8 +30,8 @@ describe('Public /invest Experience', () => {
       </AuthProvider>
     );
 
-    // Verify institutional header & hero text
-    expect(screen.getByText(/Institutional & Private Equity Portal/i)).toBeTruthy();
+    // Verify header & hero text
+    expect(screen.getByText(/Capital & Venture Direct Portal/i)).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: /Explore The Future/i })).toBeTruthy();
 
     // Verify opportunities render
@@ -50,7 +50,7 @@ describe('Public /invest Experience', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Starbase Orbital Launch Hub Expansion')).toBeTruthy();
-      expect(screen.getAllByRole('button', { name: /Request Demo Allocation/i }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole('button', { name: /Request Order Allocation/i }).length).toBeGreaterThan(0);
     });
   });
 });
