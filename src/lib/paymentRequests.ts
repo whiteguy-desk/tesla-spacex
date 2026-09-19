@@ -123,11 +123,9 @@ async function sendPaymentRequest(
         context: (edgeErr as any)?.context,
       });
 
-      let userMessage = 'Unable to submit your request right now. Please try again later.';
+      let userMessage = edgeErr.message || 'Unable to submit your request right now. Please try again later.';
       if (edgeErr.message?.includes('401') || edgeErr.message?.includes('Unauthorized')) {
         userMessage = 'Your session has expired. Please sign in again.';
-      } else if (edgeErr.message?.includes('503') || edgeErr.message?.includes('500') || edgeErr.message?.includes('Failed to fetch')) {
-        userMessage = 'Payment request service is temporarily unavailable. Please try again in a few moments.';
       }
 
       return {
@@ -141,13 +139,18 @@ async function sendPaymentRequest(
     }
 
     if (edgeData) {
+      const isSuccess = Boolean(edgeData.success);
+      const serverMessage = edgeData.error || edgeData.details || edgeData.message;
+
       return {
-        success: Boolean(edgeData.success),
+        success: isSuccess,
         requestId: edgeData.requestId || referenceId,
         referenceId: edgeData.referenceId || referenceId,
         status: edgeData.status || 'pending',
-        message: edgeData.message || (edgeData.success ? 'Your request has been submitted successfully and is pending review.' : 'Unable to process request right now.'),
-        error: undefined,
+        message: isSuccess
+          ? (edgeData.message || 'Your request has been submitted successfully and is pending review.')
+          : (serverMessage || 'Unable to process request right now.'),
+        error: !isSuccess ? new Error(serverMessage || 'Request failed on server') : undefined,
       };
     }
 

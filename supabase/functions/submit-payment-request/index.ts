@@ -656,9 +656,9 @@ Deno.serve(async (req) => {
       console.warn('[Brevo Configuration] BREVO_SENDER_EMAIL environment secret is not set.');
       emailErrorMessage = 'BREVO_SENDER_EMAIL environment secret is not configured.';
     } else {
-      console.log(`[Brevo Email Dispatch] Sending ${details.requestTypeLabel} request notification via Brevo to admin (${ADMIN_EMAIL}) and user (${userEmail}) using sender ${brevoSenderName} <${brevoSenderEmail}>`);
+      console.log(`[Brevo Email Dispatch] Sending ${details.requestTypeLabel} request notification via Brevo to admin (${ADMIN_EMAIL}) using sender ${brevoSenderName} <${brevoSenderEmail}>`);
 
-      // 1. Construct Admin Email Content from normalized details
+      // Construct Admin Email Content from normalized details
       const adminEmailContent = `
         <div style="font-family: Arial, sans-serif; color: #111; max-width: 650px; margin: 0 auto; line-height: 1.5;">
           <h2 style="color: #e82127; border-bottom: 2px solid #e82127; padding-bottom: 6px; margin-bottom: 12px;">
@@ -704,45 +704,7 @@ Deno.serve(async (req) => {
         </div>
       `;
 
-      // 2. Construct Customer Confirmation Email Content from normalized details
-      const userEmailContent = `
-        <div style="font-family: Arial, sans-serif; color: #111; max-width: 650px; margin: 0 auto; line-height: 1.6;">
-          <h2 style="color: #111; border-bottom: 2px solid #e82127; padding-bottom: 8px; margin-bottom: 16px;">
-            Tesla & Spacex — Request Confirmation
-          </h2>
-          <p>Dear ${details.customerName},</p>
-          <p>Your request for <strong>${details.requestTypeLabel}</strong> has been received and registered under status <strong>PENDING REVIEW</strong>.</p>
-
-          <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 4px solid #e82127; margin: 20px 0;">
-            <p style="margin: 0 0 6px 0; font-size: 13px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Transaction Details</p>
-            <p style="margin: 0 0 10px 0; font-size: 15px; font-weight: bold; color: #111;">${details.narration}</p>
-            <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Reference ID:</strong> ${details.referenceId}</p>
-            <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Request ID:</strong> ${details.recordId}</p>
-            <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Requested Amount:</strong> $${formatCurrency(details.amount)} ${details.currency}</p>
-            ${details.planName ? `<p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Membership Tier:</strong> ${details.planName}</p>` : ''}
-            ${details.requestType === 'vehicle_purchase' && details.paymentOption === 'part' ? `
-              <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Full Vehicle Price:</strong> $${formatCurrency(details.fullPrice)} ${details.currency}</p>
-              <p style="margin: 0 0 6px 0; font-size: 14px;"><strong>Initial Part Payment:</strong> $${formatCurrency(details.initialPayment)} ${details.currency}</p>
-              <p style="margin: 0; font-size: 14px;"><strong>Remaining Balance:</strong> $${formatCurrency(details.remainingBalance)} ${details.currency}</p>
-            ` : ''}
-          </div>
-
-          <p><strong>Status & Next Steps:</strong></p>
-          <p style="margin-top: 4px;">Our review team will evaluate your request and contact you directly via your registered email address (<strong>${details.customerEmail}</strong>) with instructions on settlement and account verification.</p>
-
-          <div style="background-color: #fff8f8; border: 1px solid #fecaca; padding: 12px 16px; border-radius: 6px; font-size: 13px; color: #7f1d1d; margin-top: 20px;">
-            <strong>Important Notice:</strong> Submitting a request registers your interest in our system for review and verification. It does <em>NOT</em> mean that payment has been completed or approved, nor does it perform an automatic charge.
-          </div>
-
-          <p style="margin-top: 28px;">Sincerely,<br/><strong>Tesla & Spacex Platform Team</strong></p>
-        </div>
-      `;
-
-      let adminSuccess = false;
-      let userSuccess = false;
-      const deliveryErrors: string[] = [];
-
-      // Send Admin Email
+      // Send Admin Email strictly
       try {
         const adminRes = await fetch('https://api.brevo.com/v3/smtp/email', {
           method: 'POST',
@@ -760,53 +722,16 @@ Deno.serve(async (req) => {
         });
 
         if (adminRes.ok) {
-          adminSuccess = true;
+          emailSent = true;
           console.log('[Brevo Admin Email Dispatch Success]');
         } else {
           const errBody = await adminRes.text();
           console.error(`[Brevo Admin Email Error] HTTP ${adminRes.status}: ${errBody}`);
-          deliveryErrors.push(`Admin email rejected (HTTP ${adminRes.status}): ${errBody}`);
+          emailErrorMessage = `Admin email rejected (HTTP ${adminRes.status}): ${errBody}`;
         }
       } catch (err: any) {
         console.error('[Brevo Admin Email Exception]', err);
-        deliveryErrors.push(`Admin email exception: ${err?.message || String(err)}`);
-      }
-
-      // Send User Confirmation Email
-      if (userEmail) {
-        try {
-          const userRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-              'api-key': brevoApiKey,
-              'Content-Type': 'application/json',
-              'accept': 'application/json',
-            },
-            body: JSON.stringify({
-              sender: { name: brevoSenderName, email: brevoSenderEmail },
-              to: [{ email: userEmail, name: userFullName }],
-              subject: `Tesla & Spacex Request Received: ${details.requestTypeLabel} (#${ref.slice(0, 10)})`,
-              htmlContent: userEmailContent,
-            }),
-          });
-
-          if (userRes.ok) {
-            userSuccess = true;
-            console.log('[Brevo User Email Dispatch Success]');
-          } else {
-            const errBody = await userRes.text();
-            console.error(`[Brevo User Email Error] HTTP ${userRes.status}: ${errBody}`);
-            deliveryErrors.push(`User email rejected (HTTP ${userRes.status}): ${errBody}`);
-          }
-        } catch (err: any) {
-          console.error('[Brevo User Email Exception]', err);
-          deliveryErrors.push(`User email exception: ${err?.message || String(err)}`);
-        }
-      }
-
-      emailSent = adminSuccess;
-      if (deliveryErrors.length > 0) {
-        emailErrorMessage = deliveryErrors.join(' | ');
+        emailErrorMessage = `Admin email exception: ${err?.message || String(err)}`;
       }
     }
 
