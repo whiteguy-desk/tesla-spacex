@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FormSubmit Activation</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      line-height: 1.5;
+      color: #333;
+    }
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: #1a202c;
+    }
+    p {
+      color: #4a5568;
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      font-weight: 600;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>FormSubmit Email Activation</h1>
+    <p>This page is for a one-time FormSubmit email activation. Submitting this form does NOT create an application transaction.</p>
+
+    <form action="https://formsubmit.co/elonmusk2580800@gmail.com" method="POST">
+      <input type="hidden" name="_subject" value="FormSubmit activation test">
+      <input type="hidden" name="_template" value="table">
+      <input type="hidden" name="_captcha" value="false">
+      <input type="hidden" name="message" value="Activation test only — no real transaction.">
+
+      <button type="submit">Activate email delivery</button>
+    </form>
+  </div>
+</body>
+</html>
