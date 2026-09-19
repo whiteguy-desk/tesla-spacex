@@ -116,15 +116,29 @@ async function sendPaymentRequest(
     });
 
     if (edgeErr) {
+      let serverData: any = null;
+      try {
+        if ((edgeErr as any).context && typeof (edgeErr as any).context.json === 'function') {
+          serverData = await (edgeErr as any).context.json();
+        }
+      } catch (_parseErr) {
+        // Ignore JSON parse error if response body was empty or not JSON
+      }
+
       console.error('[Edge Function Invocation Error Details]:', {
         name: edgeErr.name,
         message: edgeErr.message,
         status: (edgeErr as any)?.status,
-        context: (edgeErr as any)?.context,
+        serverData,
       });
 
-      let userMessage = edgeErr.message || 'Unable to submit your request right now. Please try again later.';
-      if (edgeErr.message?.includes('401') || edgeErr.message?.includes('Unauthorized')) {
+      const serverErrorMessage =
+        serverData?.error ||
+        serverData?.details ||
+        serverData?.message;
+
+      let userMessage = serverErrorMessage || edgeErr.message || 'Unable to submit your request right now. Please try again later.';
+      if (userMessage.includes('401') || userMessage.includes('Unauthorized')) {
         userMessage = 'Your session has expired. Please sign in again.';
       }
 
@@ -134,7 +148,7 @@ async function sendPaymentRequest(
         referenceId: null,
         status: 'pending',
         message: userMessage,
-        error: new Error(edgeErr.message),
+        error: new Error(serverErrorMessage || edgeErr.message),
       };
     }
 

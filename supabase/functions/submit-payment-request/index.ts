@@ -72,7 +72,10 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       console.warn('[Edge Function Auth] Missing Authorization header');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Missing authorization header' }),
+        JSON.stringify({
+          error: 'Unauthorized: Missing authorization header',
+          failedOperation: 'authentication',
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -86,17 +89,22 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
+    console.log('[Edge Function Auth User] Attempting user session retrieval via JWT...');
     const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
 
     if (userError || !user) {
       console.warn('[Edge Function Auth] User authentication failed:', userError?.message || 'No user session found');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid user session', details: userError?.message }),
+        JSON.stringify({
+          error: 'Unauthorized: Invalid user session',
+          details: userError?.message || 'Session token could not be verified',
+          failedOperation: 'authentication',
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[Edge Function Authenticated User] ID: ${user.id} | Email: ${user.email}`);
+    console.log(`[Edge Function Auth User Success] ID: ${user.id} | Email: ${user.email}`);
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -127,17 +135,27 @@ Deno.serve(async (req) => {
     if (!request_type || !ALLOWED_REQUEST_TYPES.includes(request_type)) {
       console.warn(`[Edge Function Bad Request] Invalid request type: ${request_type}`);
       return new Response(
-        JSON.stringify({ error: `Invalid request type. Allowed: ${ALLOWED_REQUEST_TYPES.join(', ')}` }),
+        JSON.stringify({
+          error: `Invalid request type. Allowed: ${ALLOWED_REQUEST_TYPES.join(', ')}`,
+          failedOperation: 'validation',
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Fetch user profile for full name
-    const { data: profile } = await supabaseAdmin
+    // Step: Fetch user profile for full name
+    console.log(`[Edge Function Profile Lookup] Fetching profile for user ID: ${user.id}`);
+    const { data: profile, error: profileErr } = await supabaseAdmin
       .from('profiles')
       .select('first_name, last_name')
       .eq('id', user.id)
       .maybeSingle();
+
+    if (profileErr) {
+      console.warn(`[Edge Function Profile Lookup Warning] ${profileErr.message}`);
+    } else {
+      console.log(`[Edge Function Profile Lookup Success] Name: ${profile?.first_name || ''} ${profile?.last_name || ''}`);
+    }
 
     const userFullName = profile?.first_name
       ? `${profile.first_name} ${profile.last_name || ''}`.trim()
@@ -151,12 +169,13 @@ Deno.serve(async (req) => {
     let transactionType = request_type;
     let details: TransactionDetails;
 
-    // Step 1: Database persistence comes first with strict error checks
+    // Step 1: Database persistence comes first with strict error responses
     switch (request_type) {
       case 'deposit': {
         const depositAmount = Number(amount) || 0;
         const method = payment_method || 'Bank Wire';
 
+        console.log(`[Edge Function DB Insert - deposits] Amount: $${depositAmount} | Ref: ${ref}`);
         const { data: deposit, error: depErr } = await supabaseAdmin
           .from('deposits')
           .insert({
@@ -172,11 +191,18 @@ Deno.serve(async (req) => {
           .single();
 
         if (depErr) {
-          console.error('[DB Insert Error - Deposits]', depErr);
-          throw new Error(`Failed to save deposit record: ${depErr.message}`);
+          console.error('[DB Insert Error - deposits]', depErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Failed to save deposit record',
+              details: depErr.message,
+              failedOperation: 'deposits_insert',
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
         recordId = deposit.id;
-        console.log(`[DB Insert Success - Deposit] ID: ${recordId}`);
+        console.log(`[DB Insert Success - deposits] ID: ${recordId}`);
 
         transactionType = 'deposit';
         const narration = `Deposit request — $${formatCurrency(depositAmount)} ${currency} via ${method}`;
@@ -209,6 +235,7 @@ Deno.serve(async (req) => {
           createdAt: nowIso,
         };
 
+        console.log(`[Edge Function DB Insert - transactions] Type: deposit | Amount: $${depositAmount}`);
         const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: transactionType,
@@ -220,10 +247,18 @@ Deno.serve(async (req) => {
         });
 
         if (txErr) {
-          console.error('[DB Insert Error - Deposit Transaction]', txErr);
-          throw new Error(`Deposit created but transaction logging failed: ${txErr.message}`);
+          console.error('[DB Insert Error - transactions]', txErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Deposit created but transaction logging failed',
+              details: txErr.message,
+              failedOperation: 'transactions_insert',
+              requestId: recordId,
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-        console.log(`[DB Insert Success - Deposit Transaction] Ref: ${ref}`);
+        console.log(`[DB Insert Success - transactions] Ref: ${ref}`);
         break;
       }
 
@@ -233,6 +268,7 @@ Deno.serve(async (req) => {
         const sourceAsset = asset_name || vehicle_name || 'Account Balance';
         const isCashOut = request_type === 'cash_out';
 
+        console.log(`[Edge Function DB Insert - withdrawals] Amount: $${wthAmount} | Asset: ${sourceAsset}`);
         const { data: wth, error: wthErr } = await supabaseAdmin
           .from('withdrawals')
           .insert({
@@ -248,11 +284,18 @@ Deno.serve(async (req) => {
           .single();
 
         if (wthErr) {
-          console.error('[DB Insert Error - Withdrawals]', wthErr);
-          throw new Error(`Failed to save withdrawal record: ${wthErr.message}`);
+          console.error('[DB Insert Error - withdrawals]', wthErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Failed to save withdrawal record',
+              details: wthErr.message,
+              failedOperation: 'withdrawals_insert',
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
         recordId = wth.id;
-        console.log(`[DB Insert Success - Withdrawal] ID: ${recordId}`);
+        console.log(`[DB Insert Success - withdrawals] ID: ${recordId}`);
 
         transactionType = 'withdrawal';
         const narration = isCashOut
@@ -287,6 +330,7 @@ Deno.serve(async (req) => {
           createdAt: nowIso,
         };
 
+        console.log(`[Edge Function DB Insert - transactions] Type: withdrawal | Amount: $${wthAmount}`);
         const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: transactionType,
@@ -298,14 +342,23 @@ Deno.serve(async (req) => {
         });
 
         if (txErr) {
-          console.error('[DB Insert Error - Withdrawal Transaction]', txErr);
-          throw new Error(`Withdrawal created but transaction logging failed: ${txErr.message}`);
+          console.error('[DB Insert Error - transactions]', txErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Withdrawal created but transaction logging failed',
+              details: txErr.message,
+              failedOperation: 'transactions_insert',
+              requestId: recordId,
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-        console.log(`[DB Insert Success - Withdrawal Transaction] Ref: ${ref}`);
+        console.log(`[DB Insert Success - transactions] Ref: ${ref}`);
         break;
       }
 
       case 'vehicle_purchase': {
+        console.log(`[Edge Function Vehicle Resolution] vehicle_id: "${vehicle_id}"`);
         let resolvedVehicleId: string | null = null;
         if (isValidUUID(vehicle_id)) {
           resolvedVehicleId = vehicle_id;
@@ -352,6 +405,7 @@ Deno.serve(async (req) => {
           orderPayload.vehicle_id = resolvedVehicleId;
         }
 
+        console.log(`[Edge Function DB Insert - orders] Vehicle: ${vName} | Option: ${payment_option}`);
         const { data: order, error: ordErr } = await supabaseAdmin
           .from('orders')
           .insert(orderPayload)
@@ -359,11 +413,18 @@ Deno.serve(async (req) => {
           .single();
 
         if (ordErr) {
-          console.error('[DB Insert Error - Orders]', ordErr);
-          throw new Error(`Failed to save vehicle order: ${ordErr.message}`);
+          console.error('[DB Insert Error - orders]', ordErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Failed to save vehicle order',
+              details: ordErr.message,
+              failedOperation: 'orders_insert',
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
         recordId = order.id;
-        console.log(`[DB Insert Success - Order] ID: ${recordId}`);
+        console.log(`[DB Insert Success - orders] ID: ${recordId}`);
 
         transactionType = 'order';
         const narration = isFullPayment
@@ -398,6 +459,7 @@ Deno.serve(async (req) => {
           createdAt: nowIso,
         };
 
+        console.log(`[Edge Function DB Insert - transactions] Type: order | Record: ${recordId}`);
         const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: transactionType,
@@ -409,14 +471,23 @@ Deno.serve(async (req) => {
         });
 
         if (txErr) {
-          console.error('[DB Insert Error - Order Transaction]', txErr);
-          throw new Error(`Order created but transaction logging failed: ${txErr.message}`);
+          console.error('[DB Insert Error - transactions]', txErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Order created but transaction logging failed',
+              details: txErr.message,
+              failedOperation: 'transactions_insert',
+              requestId: recordId,
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-        console.log(`[DB Insert Success - Order Transaction] Record: ${recordId}`);
+        console.log(`[DB Insert Success - transactions] Record: ${recordId}`);
         break;
       }
 
       case 'investment': {
+        console.log(`[Edge Function Project Resolution] project_id: "${project_id}"`);
         let resolvedProjectId: string | null = null;
         if (isValidUUID(project_id)) {
           resolvedProjectId = project_id;
@@ -446,6 +517,7 @@ Deno.serve(async (req) => {
           invPayload.project_id = resolvedProjectId;
         }
 
+        console.log(`[Edge Function DB Insert - investments] Project: ${pName} | Amount: $${invAmount}`);
         const { data: inv, error: invErr } = await supabaseAdmin
           .from('investments')
           .insert(invPayload)
@@ -453,11 +525,18 @@ Deno.serve(async (req) => {
           .single();
 
         if (invErr) {
-          console.error('[DB Insert Error - Investments]', invErr);
-          throw new Error(`Failed to save investment record: ${invErr.message}`);
+          console.error('[DB Insert Error - investments]', invErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Failed to save investment record',
+              details: invErr.message,
+              failedOperation: 'investments_insert',
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
         recordId = inv.id;
-        console.log(`[DB Insert Success - Investment] ID: ${recordId}`);
+        console.log(`[DB Insert Success - investments] ID: ${recordId}`);
 
         transactionType = 'investment';
         const narration = `Investment request — ${pName} — $${formatCurrency(invAmount)} ${currency}`;
@@ -490,6 +569,7 @@ Deno.serve(async (req) => {
           createdAt: nowIso,
         };
 
+        console.log(`[Edge Function DB Insert - transactions] Type: investment | Record: ${recordId}`);
         const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: transactionType,
@@ -501,18 +581,28 @@ Deno.serve(async (req) => {
         });
 
         if (txErr) {
-          console.error('[DB Insert Error - Investment Transaction]', txErr);
-          throw new Error(`Investment created but transaction logging failed: ${txErr.message}`);
+          console.error('[DB Insert Error - transactions]', txErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Investment created but transaction logging failed',
+              details: txErr.message,
+              failedOperation: 'transactions_insert',
+              requestId: recordId,
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-        console.log(`[DB Insert Success - Investment Transaction] Record: ${recordId}`);
+        console.log(`[DB Insert Success - transactions] Record: ${recordId}`);
         break;
       }
 
       case 'plan_upgrade':
       case 'membership_upgrade': {
+        console.log(`[Edge Function Tier Resolution] Resolving membership tier for plan_id: "${plan_id}", plan_name: "${plan_name}"`);
         let tierRecord: { id: string; name: string; price: number; currency: string; active: boolean } | null = null;
 
         if (isValidUUID(plan_id)) {
+          console.log(`[Edge Function Tier Resolution] Querying membership_tiers by UUID: ${plan_id}`);
           const { data: tier, error: tErr } = await supabaseAdmin
             .from('membership_tiers')
             .select('id, name, price, currency, active')
@@ -521,13 +611,21 @@ Deno.serve(async (req) => {
 
           if (tErr) {
             console.error('[DB Query Error - membership_tiers by UUID]', tErr);
-            throw new Error(`Failed to verify membership tier: ${tErr.message}`);
+            return new Response(
+              JSON.stringify({
+                error: 'Failed to verify membership tier from database',
+                details: tErr.message,
+                failedOperation: 'membership_tier_resolution',
+              }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
           }
           tierRecord = tier;
         }
 
         if (!tierRecord && (plan_id || plan_name)) {
           const searchVal = plan_name || plan_id;
+          console.log(`[Edge Function Tier Resolution] Querying membership_tiers by Name: "${searchVal}"`);
           const { data: tier, error: tErr } = await supabaseAdmin
             .from('membership_tiers')
             .select('id, name, price, currency, active')
@@ -535,23 +633,31 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (tErr) {
-            console.error('[DB Query Error - membership_tiers by name]', tErr);
+            console.error('[DB Query Error - membership_tiers by Name]', tErr);
           }
           tierRecord = tier;
         }
 
         if (!tierRecord) {
-          console.warn(`[Membership Upgrade Error] Tier not found: ID=${plan_id}, Name=${plan_name}`);
+          console.warn(`[Membership Upgrade Error] Tier not found: ID="${plan_id}", Name="${plan_name}"`);
           return new Response(
-            JSON.stringify({ error: 'Selected membership tier was not found. Please select a valid membership tier.' }),
+            JSON.stringify({
+              error: 'Selected membership tier was not found. Please select a valid membership tier.',
+              details: `No tier found matching ID "${plan_id}" or Name "${plan_name}"`,
+              failedOperation: 'membership_tier_resolution',
+            }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
         if (tierRecord.active === false) {
-          console.warn(`[Membership Upgrade Error] Tier is inactive: ${tierRecord.name}`);
+          console.warn(`[Membership Upgrade Error] Tier is inactive: "${tierRecord.name}"`);
           return new Response(
-            JSON.stringify({ error: 'Selected membership tier is currently inactive and cannot be requested.' }),
+            JSON.stringify({
+              error: 'Selected membership tier is currently inactive and cannot be requested.',
+              details: `Membership tier "${tierRecord.name}" is marked inactive in database`,
+              failedOperation: 'membership_tier_resolution',
+            }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -563,6 +669,8 @@ Deno.serve(async (req) => {
         const tierCurrency = tierRecord.currency || currency || 'USD';
         const isMembership = request_type === 'membership_upgrade';
 
+        console.log(`[Edge Function Tier Resolution Success] Tier ID: ${resolvedPlanId} | Name: ${resolvedTierName} | Price: $${tierPrice} ${tierCurrency}`);
+
         const subPayload: Record<string, any> = {
           user_id: user.id,
           plan_id: resolvedPlanId,
@@ -570,6 +678,7 @@ Deno.serve(async (req) => {
           notes: notes || `Request to upgrade to ${resolvedTierName} Tier`,
         };
 
+        console.log(`[Edge Function DB Insert - user_subscriptions] Inserting subscription for user_id: ${user.id}, plan_id: ${resolvedPlanId}`);
         const { data: sub, error: subErr } = await supabaseAdmin
           .from('user_subscriptions')
           .insert(subPayload)
@@ -577,11 +686,18 @@ Deno.serve(async (req) => {
           .single();
 
         if (subErr) {
-          console.error('[DB Insert Error - User Subscriptions]', subErr);
-          throw new Error(`Failed to save membership subscription record: ${subErr.message}`);
+          console.error('[DB Insert Error - user_subscriptions]', subErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Failed to save membership subscription record',
+              details: subErr.message,
+              failedOperation: 'user_subscriptions_insert',
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
         recordId = sub.id;
-        console.log(`[DB Insert Success - User Subscription] ID: ${recordId}`);
+        console.log(`[DB Insert Success - user_subscriptions] Subscription ID: ${recordId}`);
 
         transactionType = 'plan';
         const narration = isMembership
@@ -616,6 +732,7 @@ Deno.serve(async (req) => {
           createdAt: nowIso,
         };
 
+        console.log(`[Edge Function DB Insert - transactions] Type: plan | Record: ${recordId}`);
         const { error: txErr } = await supabaseAdmin.from('transactions').insert({
           user_id: user.id,
           type: transactionType,
@@ -627,16 +744,27 @@ Deno.serve(async (req) => {
         });
 
         if (txErr) {
-          console.error('[DB Insert Error - Plan Transaction]', txErr);
-          throw new Error(`Subscription created but transaction logging failed: ${txErr.message}`);
+          console.error('[DB Insert Error - transactions]', txErr);
+          return new Response(
+            JSON.stringify({
+              error: 'Subscription record was created, but transaction logging failed',
+              details: txErr.message,
+              failedOperation: 'transactions_insert',
+              requestId: recordId,
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-        console.log(`[DB Insert Success - Plan Transaction] Record: ${recordId}`);
+        console.log(`[DB Insert Success - transactions] Transaction Record: ${recordId}`);
         break;
       }
 
       default:
         return new Response(
-          JSON.stringify({ error: 'Unsupported request type' }),
+          JSON.stringify({
+            error: 'Unsupported request type',
+            failedOperation: 'validation',
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }
@@ -650,13 +778,13 @@ Deno.serve(async (req) => {
     let emailErrorMessage: string | null = null;
 
     if (!brevoApiKey) {
-      console.warn('[Brevo Configuration] BREVO_API_KEY environment secret is not set.');
+      console.warn('[Brevo Configuration Warning] BREVO_API_KEY environment secret is not set.');
       emailErrorMessage = 'BREVO_API_KEY environment secret is not configured.';
     } else if (!brevoSenderEmail) {
-      console.warn('[Brevo Configuration] BREVO_SENDER_EMAIL environment secret is not set.');
+      console.warn('[Brevo Configuration Warning] BREVO_SENDER_EMAIL environment secret is not set.');
       emailErrorMessage = 'BREVO_SENDER_EMAIL environment secret is not configured.';
     } else {
-      console.log(`[Brevo Email Dispatch] Sending ${details.requestTypeLabel} request notification via Brevo to admin (${ADMIN_EMAIL}) using sender ${brevoSenderName} <${brevoSenderEmail}>`);
+      console.log(`[Brevo Email Dispatch] Sending ${details.requestTypeLabel} notification to admin (${ADMIN_EMAIL}) using sender ${brevoSenderName} <${brevoSenderEmail}>`);
 
       // Construct Admin Email Content from normalized details
       const adminEmailContent = `
@@ -756,6 +884,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         error: err?.message || 'Unable to submit your request right now. Please try again later.',
         details: String(err),
+        failedOperation: 'unhandled_server_exception',
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
