@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PaymentPage } from '../components/PaymentPage';
 import { savePaymentRequestContext } from '../lib/paymentContext';
 import { supabase } from '../lib/supabase';
+import * as paymentRequests from '../lib/paymentRequests';
 
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
@@ -65,7 +66,7 @@ describe('Payment Methods Integration Requirements', () => {
     expect(telegramLink.getAttribute('href')).toBe('https://t.me/elonmusk2580900');
   });
 
-  it('handles Email payment method with mailto: link', () => {
+  it('handles Email payment method with mailto: link to exact recipient elonmusk258080@gmail.com', () => {
     savePaymentRequestContext({
       request_type: 'deposit',
       reference_id: 'DEP-1003',
@@ -82,9 +83,43 @@ describe('Payment Methods Integration Requirements', () => {
     fireEvent.click(emailBtn);
 
     const emailLink = screen.getByRole('link', { name: /Open Email Client/i });
-    const href = emailLink.getAttribute('href');
-    expect(href).toContain('mailto:elonmusk2580800@gmail.com');
+    const href = emailLink.getAttribute('href') || '';
+    expect(href).toContain('mailto:elonmusk258080@gmail.com');
+    expect(href).not.toContain('elonmusk2580800@gmail.com');
     expect(href).toContain('DEP-1003');
+    expect(href).toContain('Settlement%20Method%3A%20Email');
+  });
+
+  it('handles Cryptocurrency payment method with mailto: link to exact recipient elonmusk258080@gmail.com and does NOT invoke Supabase submission handlers', () => {
+    const depositSpy = vi.spyOn(paymentRequests, 'submitDepositRequest');
+    const withdrawalSpy = vi.spyOn(paymentRequests, 'submitWithdrawalRequest');
+
+    savePaymentRequestContext({
+      request_type: 'deposit',
+      reference_id: 'DEP-1004-CRYPTO',
+      amount: 5000,
+      currency: 'USD',
+      customer_name: 'Test User',
+      customer_email: 'testuser@tesla.com',
+      is_submitted: false,
+    });
+
+    render(<PaymentPage />);
+
+    const cryptoBtn = screen.getByText('Crypto');
+    fireEvent.click(cryptoBtn);
+
+    const cryptoEmailLink = screen.getByRole('link', { name: /Open Email Client/i });
+    const href = cryptoEmailLink.getAttribute('href') || '';
+
+    expect(href).toContain('mailto:elonmusk258080@gmail.com');
+    expect(href).not.toContain('elonmusk2580800@gmail.com');
+    expect(href).toContain('DEP-1004-CRYPTO');
+    expect(href).toContain('Settlement%20Method%3A%20Cryptocurrency');
+    expect(href).not.toContain('https://t.me/');
+
+    expect(depositSpy).not.toHaveBeenCalled();
+    expect(withdrawalSpy).not.toHaveBeenCalled();
   });
 
   it('validates Gift Card file type and file size limits', async () => {
