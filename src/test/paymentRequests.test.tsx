@@ -21,7 +21,7 @@ const mockEq = vi.fn().mockReturnThis();
 const mockOrder = vi.fn().mockResolvedValue({
   data: [
     {
-      id: '00000000-0000-4000-c000-000000000001',
+      id: '39210b44-7892-4c62-b15a-d5f429e83bbf',
       name: 'Silver',
       price: 2000,
       currency: 'USD',
@@ -32,7 +32,7 @@ const mockOrder = vi.fn().mockResolvedValue({
       active: true,
     },
     {
-      id: '00000000-0000-4000-c000-000000000002',
+      id: '0b26ab31-f64d-4e6b-8b1f-01e98f30f9f3',
       name: 'Gold',
       price: 5000,
       currency: 'USD',
@@ -43,7 +43,7 @@ const mockOrder = vi.fn().mockResolvedValue({
       active: true,
     },
     {
-      id: '00000000-0000-4000-c000-000000000003',
+      id: '4049f74b-bdbf-437e-9d42-bd7460bfac36',
       name: 'Platinum',
       price: 10000,
       currency: 'USD',
@@ -153,7 +153,7 @@ describe('Centralized Payment Request System', () => {
   });
 
   it('submits membership upgrade request via paymentRequests service with UUID', async () => {
-    const platinumUuid = '00000000-0000-4000-c000-000000000003';
+    const platinumUuid = '4049f74b-bdbf-437e-9d42-bd7460bfac36';
     const result = await submitMembershipUpgradeRequest({
       tierId: platinumUuid,
       tierName: 'Platinum',
@@ -331,7 +331,7 @@ describe('Centralized Payment Request System', () => {
       expect.objectContaining({
         body: expect.objectContaining({
           request_type: 'membership_upgrade',
-          plan_id: '00000000-0000-4000-c000-000000000001',
+          plan_id: '39210b44-7892-4c62-b15a-d5f429e83bbf',
           plan_name: 'Silver',
           amount: 2000,
         }),
