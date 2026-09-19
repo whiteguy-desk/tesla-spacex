@@ -262,6 +262,35 @@ describe('Centralized Payment Request System', () => {
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
+  it('parses server-provided JSON error body when Edge Function returns non-2xx status code', async () => {
+    const mockContext = {
+      json: vi.fn().mockResolvedValue({
+        error: 'Failed to save membership subscription record',
+        details: 'insert or update on table "user_subscriptions" violates foreign key constraint',
+        failedOperation: 'user_subscriptions_insert',
+      }),
+    };
+
+    vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({
+      data: null,
+      error: {
+        name: 'FunctionsHttpError',
+        message: 'Edge Function returned a non-2xx status code',
+        context: mockContext,
+      } as any,
+    });
+
+    const result = await submitMembershipUpgradeRequest({
+      tierId: '39210b44-7892-4c62-b15a-d5f429e83bbf',
+      tierName: 'Silver',
+      price: 2000,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Failed to save membership subscription record');
+    expect(mockContext.json).toHaveBeenCalled();
+  });
+
   it('renders DepositPage form and shows in-app success state on submission without Telegram redirect', async () => {
     render(<DepositPage />);
 
